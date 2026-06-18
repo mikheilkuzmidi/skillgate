@@ -1,0 +1,51 @@
+{
+  "name": "skillgate",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev --webpack",
+    "build": "next build --webpack",
+    "start": "next start",
+    "lint": "eslint .",
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "deploy:sepolia": "hardhat run scripts/deploy.ts --build-profile production --network sepolia",
+    "deploy:cloudflare": "wrangler pages deploy out --project-name skillgate"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "5.101.0",
+    "alchemy-sdk": "3.6.5",
+    "dotenv": "17.4.2",
+    "next": "16.2.9",
+    "react": "19.2.7",
+    "react-dom": "19.2.7",
+    "viem": "2.52.2",
+    "wagmi": "3.6.16"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox-viem": "5.0.7",
+    "@openzeppelin/contracts": "5.6.1",
+    "@types/node": "24.10.1",
+    "@types/react": "19.2.17",
+    "@types/react-dom": "19.2.3",
+    "eslint": "9.39.1",
+    "eslint-config-next": "16.2.9",
+    "hardhat": "3.9.0",
+    "typescript": "6.0.3",
+    "wrangler": "^4.101.0"
+  },
+  "packageManager": "pnpm@10.33.4",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "bufferutil",
+      "es5-ext",
+      "esbuild",
+      "protobufjs",
+      "sharp",
+      "unrs-resolver",
+      "utf-8-validate",
+      "workerd"
+    ]
+  }
+}

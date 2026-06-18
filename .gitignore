@@ -1,0 +1,14 @@
+node_modules
+.next
+out
+.wrangler
+artifacts
+cache
+coverage
+ignition/deployments
+.env
+.env*.local
+*.log
+*.tsbuildinfo
+.qa
+.gstack/
