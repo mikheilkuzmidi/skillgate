@@ -24,7 +24,7 @@ The default workspace is Granary Foods:
 - Network: Ethereum Sepolia
 - Contract: `0x36e7F8138427f46b56F2Edd26c684D32c770D527` ([Etherscan](https://sepolia.etherscan.io/address/0x36e7F8138427f46b56F2Edd26c684D32c770D527))
 - Deploy block: `11086829`
-- Live demo: _added after the Cloudflare Pages deploy_
+- Live demo: https://skillgate.pages.dev
 
 ## Stack
 
