@@ -7,6 +7,6 @@ export function consolePath(gate: { isAdmin: boolean; isEmployee: boolean }): Co
   return "/not-registered";
 }
 
-// Set when a wallet connects from the public page so we route it to its console
-// once — without trapping a connected wallet that navigates back to the verifier.
+// Set on connect from the public page so the wallet routes to its console once.
+// A wallet that later returns to the verifier carries no flag, so it stays put.
 export const AUTO_ROUTE_KEY = "sg:autoroute";

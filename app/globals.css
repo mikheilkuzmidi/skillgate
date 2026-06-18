@@ -621,22 +621,6 @@ a {
   gap: 12px;
 }
 
-.sg .pbar {
-  width: 120px;
-  height: 4px;
-  background: var(--chip);
-  border: 1px solid var(--line);
-  border-radius: 2px;
-  overflow: hidden;
-}
-
-.sg .pbar i {
-  display: block;
-  height: 100%;
-  background: var(--ink);
-  transition: width 0.25s ease;
-}
-
 .sg .audit {
   border: 1px solid var(--line);
   border-radius: 10px;

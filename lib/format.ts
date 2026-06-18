@@ -1,4 +1,4 @@
-import { getAddress, isAddress, type Address } from "viem";
+import { getAddress, isAddress } from "viem";
 
 export function shortAddress(address: string | undefined, size = 4) {
   if (!address || !isAddress(address)) {
@@ -6,10 +6,6 @@ export function shortAddress(address: string | undefined, size = 4) {
   }
   const checked = getAddress(address);
   return `${checked.slice(0, 6)}...${checked.slice(-size)}`;
-}
-
-export function asAddress(value: string): Address | undefined {
-  return isAddress(value) ? getAddress(value) : undefined;
 }
 
 export function daysFromSeconds(seconds: bigint) {
@@ -29,11 +25,4 @@ export function expiryLabel(expiresAt: bigint | undefined) {
     return "today";
   }
   return `in ${days.toString()} days`;
-}
-
-export function timestampLabel(value: bigint | undefined) {
-  if (!value || value === 0n) {
-    return "-";
-  }
-  return new Date(Number(value) * 1000).toISOString();
 }

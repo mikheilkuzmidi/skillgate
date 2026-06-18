@@ -10,7 +10,9 @@ This project is built as an Alchemy Ethereum Bootcamp capstone-style product: So
 - Admin console at `/admin` registers workers, creates certificate types, creates gated tasks, issues certificates, and revokes certificates.
 - Worker console at `/worker` lets registered workers pass a short on-chain quiz, self-claim a certificate by sending their own transaction, and start unlocked tasks.
 
-Connecting a wallet from the public page routes you to the right console automatically based on your on-chain role (admin, worker, or not registered). The public verifier stays open to everyone.
+Connecting a wallet from the public page routes you to the right console automatically based on your on-chain role (admin, worker, or not registered). The public verifier stays open to everyone. The app runs on Sepolia and prompts you to switch networks if your wallet is on another chain.
+
+Certificates are self-claimed by the worker: the quiz answer is verified on-chain (the contract stores a keccak256 hash of the correct answers), so issuance needs no trusted server and the frontend holds no private key.
 
 The default workspace is Granary Foods:
 

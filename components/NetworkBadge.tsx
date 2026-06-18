@@ -5,8 +5,8 @@ import { skillGateSepolia } from "@/lib/sepolia";
 import { getSkillGateAddress } from "@/lib/skillgate";
 import { shortAddress } from "@/lib/format";
 
-// Live network status for the sidebar — reflects the connected wallet's actual
-// chain, not the contract's chain. Surfaces a wrong-network state with a switch.
+// Sidebar network indicator. Shows the connected wallet's actual chain (not the
+// contract's) and flags a wrong-network state with a switch action.
 export function NetworkBadge() {
   const connection = useConnection();
   const switchChain = useSwitchChain();

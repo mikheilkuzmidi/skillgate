@@ -70,8 +70,8 @@ export const QUIZZES: Record<string, Quiz> = {
   }
 };
 
-// Canonical answer string for a quiz: the correct option indices joined by '-'.
-// This exact string is hashed on-chain (keccak256 of its UTF-8 bytes) as the quiz gate.
+// Canonical answer string: the correct option indices joined by '-'.
+// Its keccak256 hash is stored on-chain as the quiz gate.
 export function answerKey(quiz: Quiz): string {
   return quiz.questions.map((question) => question.answer).join("-");
 }

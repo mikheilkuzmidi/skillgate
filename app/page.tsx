@@ -27,8 +27,7 @@ export default function PublicPage() {
   const [checked, setChecked] = useState<Address | undefined>();
   const [inputError, setInputError] = useState("");
 
-  // Auto-route once, only when the wallet connected from here. A connected wallet
-  // that navigates back to the verifier later won't carry the flag, so it stays.
+  // Route to the role console once, right after connecting from this page.
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (window.sessionStorage.getItem(AUTO_ROUTE_KEY) !== "1") return;
