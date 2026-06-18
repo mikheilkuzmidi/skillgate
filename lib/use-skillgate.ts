@@ -7,7 +7,8 @@ import {
   getDeployBlock,
   getSkillGateAddress,
   roleLabel,
-  skillGateAbi
+  skillGateAbi,
+  SEPOLIA_CHAIN_ID
 } from "@/lib/skillgate";
 import { publicClient } from "@/lib/public-client";
 
@@ -83,13 +84,17 @@ export function useWalletGate() {
   const isAdmin = Boolean(address && owner && getAddress(address) === owner);
   const isEmployee = Boolean(employeeRead.data);
   const role = roleRead.data as Hex | undefined;
+  const connected = connection.status === "connected";
+  const onSepolia = connected && connection.chainId === SEPOLIA_CHAIN_ID;
 
   return {
     address,
     contractAddress,
     configured: enabled,
-    connected: connection.status === "connected",
+    connected,
     connectionStatus: connection.status,
+    chainId: connection.chainId,
+    onSepolia,
     owner,
     isAdmin,
     isEmployee,

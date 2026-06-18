@@ -2,12 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useWriteContract } from "wagmi";
+import { useSwitchChain, useWriteContract } from "wagmi";
 import { getAddress, isAddress, type Address, type Hex } from "viem";
 import { AppShell } from "@/components/AppShell";
 import { Empty, Notice, Status } from "@/components/Status";
 import { daysFromSeconds, expiryLabel, shortAddress } from "@/lib/format";
 import { ENGINEER_ROLE, OPERATOR_ROLE, ROLE_LABELS, roleLabel, skillGateAbi } from "@/lib/skillgate";
+import { skillGateSepolia } from "@/lib/sepolia";
 import { ZERO_HASH } from "@/lib/quizzes";
 import { publicClient } from "@/lib/public-client";
 import { useSkillGateData, useWalletGate } from "@/lib/use-skillgate";
@@ -30,6 +31,7 @@ export default function AdminPage() {
   const gate = useWalletGate();
   const data = useSkillGateData();
   const write = useWriteContract();
+  const switchChain = useSwitchChain();
   const [message, setMessage] = useState("");
 
   const [showType, setShowType] = useState(false);
@@ -69,8 +71,15 @@ export default function AdminPage() {
     await gate.refetch();
   }
 
+  function requireSepolia() {
+    if (gate.onSepolia) return true;
+    setMessage("Switch your wallet to the Sepolia network first.");
+    return false;
+  }
+
   async function createType() {
     if (!gate.contractAddress || !typeName.trim()) return;
+    if (!requireSepolia()) return;
     const days = BigInt(Number(typeDays || "0"));
     if (days <= 0n) {
       setMessage("Enter a validity period greater than zero.");
@@ -80,7 +89,8 @@ export default function AdminPage() {
       address: gate.contractAddress,
       abi: skillGateAbi,
       functionName: "createCertificateType",
-      args: [typeName.trim(), days * 86_400n, typeRole, ZERO_HASH]
+      args: [typeName.trim(), days * 86_400n, typeRole, ZERO_HASH],
+      chainId: skillGateSepolia.id
     });
     await wait(hash);
     setTypeName("");
@@ -91,11 +101,13 @@ export default function AdminPage() {
 
   async function createTask() {
     if (!gate.contractAddress || !taskName.trim() || !taskRequired) return;
+    if (!requireSepolia()) return;
     const hash = await write.mutateAsync({
       address: gate.contractAddress,
       abi: skillGateAbi,
       functionName: "createTask",
-      args: [taskName.trim(), BigInt(taskRequired)]
+      args: [taskName.trim(), BigInt(taskRequired)],
+      chainId: skillGateSepolia.id
     });
     await wait(hash);
     setTaskName("");
@@ -105,6 +117,7 @@ export default function AdminPage() {
 
   async function registerWorker() {
     if (!gate.contractAddress) return;
+    if (!requireSepolia()) return;
     const addr = workerAddr.trim();
     if (!isAddress(addr)) {
       setMessage("Enter a valid wallet address.");
@@ -114,7 +127,8 @@ export default function AdminPage() {
       address: gate.contractAddress,
       abi: skillGateAbi,
       functionName: "registerEmployee",
-      args: [getAddress(addr), workerRole]
+      args: [getAddress(addr), workerRole],
+      chainId: skillGateSepolia.id
     });
     await wait(hash);
     setWorkerAddr("");
@@ -124,11 +138,13 @@ export default function AdminPage() {
 
   async function issueCertificate() {
     if (!gate.contractAddress || !activeWorker || !activeIssueType) return;
+    if (!requireSepolia()) return;
     const hash = await write.mutateAsync({
       address: gate.contractAddress,
       abi: skillGateAbi,
       functionName: "issueCertificate",
-      args: [activeWorker, BigInt(activeIssueType)]
+      args: [activeWorker, BigInt(activeIssueType)],
+      chainId: skillGateSepolia.id
     });
     await wait(hash);
     setMessage("Certificate issued.");
@@ -136,11 +152,13 @@ export default function AdminPage() {
 
   async function revokeCertificate(holder: Address, typeId: bigint) {
     if (!gate.contractAddress) return;
+    if (!requireSepolia()) return;
     const hash = await write.mutateAsync({
       address: gate.contractAddress,
       abi: skillGateAbi,
       functionName: "revokeCertificate",
-      args: [holder, typeId]
+      args: [holder, typeId],
+      chainId: skillGateSepolia.id
     });
     await wait(hash);
     setMessage("Certificate revoked.");
@@ -184,6 +202,23 @@ export default function AdminPage() {
       {message && (
         <section className="sec">
           <Notice>{message}</Notice>
+        </section>
+      )}
+
+      {gate.connected && !gate.onSepolia && (
+        <section className="sec">
+          <div className="banner">
+            <span>
+              Your wallet is on the wrong network. SkillGate runs on the <b>Sepolia</b> test network (free test ETH, no real fees).
+            </span>
+            <button
+              className="btn sm"
+              disabled={switchChain.isPending}
+              onClick={() => switchChain.mutate({ chainId: skillGateSepolia.id })}
+            >
+              {switchChain.isPending ? "Switching" : "Switch to Sepolia"}
+            </button>
+          </div>
         </section>
       )}
 

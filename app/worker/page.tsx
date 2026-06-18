@@ -2,12 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useWriteContract } from "wagmi";
+import { useSwitchChain, useWriteContract } from "wagmi";
 import { AppShell } from "@/components/AppShell";
 import { LockIcon, Tick } from "@/components/GateIcons";
 import { Empty, Notice, Status } from "@/components/Status";
 import { expiryLabel } from "@/lib/format";
 import { roleLabel, skillGateAbi } from "@/lib/skillgate";
+import { skillGateSepolia } from "@/lib/sepolia";
 import { QUIZZES, answerKey } from "@/lib/quizzes";
 import { publicClient } from "@/lib/public-client";
 import { useSkillGateData, useTaskGate, useWalletGate, type CertificateTypeView } from "@/lib/use-skillgate";
@@ -25,6 +26,7 @@ export default function WorkerPage() {
   const gate = useWalletGate();
   const data = useSkillGateData();
   const write = useWriteContract();
+  const switchChain = useSwitchChain();
   const [openQuiz, setOpenQuiz] = useState<string | null>(null);
   const [answers, setAnswers] = useState<Record<string, number[]>>({});
   const [message, setMessage] = useState("");
@@ -69,6 +71,10 @@ export default function WorkerPage() {
 
   async function claim(type: CertificateTypeView) {
     if (!gate.contractAddress) return;
+    if (!gate.onSepolia) {
+      setMessage("Switch your wallet to the Sepolia network first.");
+      return;
+    }
     const quiz = QUIZZES[type.id.toString()];
     let answer = "";
 
@@ -91,7 +97,8 @@ export default function WorkerPage() {
       address: gate.contractAddress,
       abi: skillGateAbi,
       functionName: "claimCertificate",
-      args: [type.id, answer]
+      args: [type.id, answer],
+      chainId: skillGateSepolia.id
     });
     await publicClient.waitForTransactionReceipt({ hash, confirmations: 1 });
     setOpenQuiz(null);
@@ -107,11 +114,16 @@ export default function WorkerPage() {
 
   async function startTask(taskId: bigint) {
     if (!gate.contractAddress) return;
+    if (!gate.onSepolia) {
+      setMessage("Switch your wallet to the Sepolia network first.");
+      return;
+    }
     const hash = await write.mutateAsync({
       address: gate.contractAddress,
       abi: skillGateAbi,
       functionName: "startTask",
-      args: [taskId]
+      args: [taskId],
+      chainId: skillGateSepolia.id
     });
     await publicClient.waitForTransactionReceipt({ hash, confirmations: 1 });
     await data.refetchAll();
@@ -160,6 +172,23 @@ export default function WorkerPage() {
         </section>
       )}
 
+      {gate.connected && !gate.onSepolia && (
+        <section className="sec">
+          <div className="banner">
+            <span>
+              Your wallet is on the wrong network. SkillGate runs on the <b>Sepolia</b> test network (free test ETH, no real fees).
+            </span>
+            <button
+              className="btn sm"
+              disabled={switchChain.isPending}
+              onClick={() => switchChain.mutate({ chainId: skillGateSepolia.id })}
+            >
+              {switchChain.isPending ? "Switching" : "Switch to Sepolia"}
+            </button>
+          </div>
+        </section>
+      )}
+
       <section className="sec">
         <div className="sechead">
           <h2>Wallet</h2>
@@ -203,7 +232,7 @@ export default function WorkerPage() {
                         </button>
                       )
                     ) : (
-                      <button className="btn sm" onClick={() => claim(type)} disabled={write.isPending}>
+                      <button className="btn sm" onClick={() => claim(type)} disabled={write.isPending || !gate.onSepolia}>
                         {write.isPending ? "Submitting" : "Claim certificate"}
                       </button>
                     )}
@@ -247,7 +276,7 @@ export default function WorkerPage() {
                       <button
                         className="btn sm"
                         onClick={() => claim(type)}
-                        disabled={!allAnswered || write.isPending}
+                        disabled={!allAnswered || write.isPending || !gate.onSepolia}
                       >
                         {write.isPending ? "Submitting" : "Get certificate"}
                       </button>
@@ -320,7 +349,7 @@ export default function WorkerPage() {
                   </div>
                 </div>
                 {valid ? (
-                  <button className="btn sm" onClick={() => startTask(task.id)} disabled={write.isPending}>
+                  <button className="btn sm" onClick={() => startTask(task.id)} disabled={write.isPending || !gate.onSepolia}>
                     Start task
                   </button>
                 ) : (
