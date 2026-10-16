@@ -183,9 +183,9 @@ The fixture script writes an ignored `.env.local` and refuses to overwrite an un
 
 ### Review and submission boundary
 
-The existing deployment above predates these changes. SkillGate is not upgradeable: the new contract guards require a fresh, explicitly approved deployment; updating frontend files alone cannot change the old contract. No public deployment, repository visibility change, certification submission or recording was performed as part of this validation.
+The existing deployment above predates these changes. SkillGate is not upgradeable: the new contract guards require a fresh, explicitly approved deployment; updating frontend files alone cannot change the old contract. No public deployment, repository visibility change or certification submission was performed. A separate walkthrough was recorded on the local validation network for owner review.
 
 Quiz answers and their hashes are public, and answered transactions can be read on-chain. This verifies the application workflow, not independent competence or completion of regulated workplace training. A real deployment would require trusted assessment/attestation, issuer lifecycle controls and an independent security review. The current small workspace reads employee/certificate lists in full; larger deployments need pagination/indexing.
 
-Alchemy's EVM certification requires the project name, GitHub URL, description and a video no longer than 5 minutes (up to 200 MB). The live URL is optional. Video, reviewer access to the private repository and the final submission remain for the next session.
+Alchemy's EVM certification requires the project name, GitHub URL, description and a video no longer than 5 minutes (up to 200 MB). The live URL is optional. Reviewing the prepared video, arranging reviewer access to the private repository and approving the final submission remain with the owner.
 Source: https://university.alchemy.com/certifications/evm-chain

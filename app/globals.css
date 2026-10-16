@@ -402,10 +402,32 @@ a {
   width: 100%;
 }
 
-.sg input:focus,
-.sg select:focus {
+.sg select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 38px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14' fill='none'%3E%3Cpath d='m3.5 5.25 3.5 3.5 3.5-3.5' stroke='%23111111' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 14px 14px;
+  max-width: 100%;
+  min-width: 0;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.sg select:disabled {
+  cursor: not-allowed;
+  color: var(--muted);
+}
+
+.sg input[type="text"]:focus-visible,
+.sg input[type="number"]:focus-visible,
+.sg select:focus-visible,
+.sg button:focus-visible,
+.sg a:focus-visible {
   outline: 2px solid var(--ink);
-  outline-offset: 1px;
+  outline-offset: 3px;
 }
 
 .sg .row {
@@ -430,6 +452,8 @@ a {
   display: flex;
   flex-direction: column;
   gap: 5px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .sg .field label,
@@ -587,8 +611,19 @@ a {
   background: var(--chip);
 }
 
-.sg .q-opt input {
+.sg .q-opt input[type="radio"] {
   accent-color: var(--ink);
+  inline-size: 16px;
+  block-size: 16px;
+  flex: none;
+  margin: 0;
+  outline: none;
+  cursor: pointer;
+}
+
+.sg .q-opt:has(input:focus-visible) {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
 }
 
 .sg .quiz-foot {

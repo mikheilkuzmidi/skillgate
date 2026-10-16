@@ -269,16 +269,16 @@ function AdminConsole() {
         {showType && (
           <div className="issue" style={{ marginTop: 10 }}>
             <span className="field">
-              <label>Name</label>
-              <input type="text" value={typeName} onChange={(event) => setTypeName(event.target.value)} placeholder="Solidity and Ethereum" />
+              <label htmlFor="certificate-name">Name</label>
+              <input id="certificate-name" type="text" value={typeName} onChange={(event) => setTypeName(event.target.value)} placeholder="Solidity and Ethereum" />
             </span>
             <span className="field">
-              <label>Days</label>
-              <input type="number" value={typeDays} onChange={(event) => setTypeDays(event.target.value)} style={{ width: 90 }} />
+              <label htmlFor="certificate-days">Days</label>
+              <input id="certificate-days" type="number" min="1" step="1" value={typeDays} onChange={(event) => setTypeDays(event.target.value)} style={{ width: 90 }} />
             </span>
             <span className="field">
-              <label>Role</label>
-              <select value={typeRole} onChange={(event) => setTypeRole(event.target.value as Hex)}>
+              <label htmlFor="certificate-role">Role</label>
+              <select id="certificate-role" value={typeRole} onChange={(event) => setTypeRole(event.target.value as Hex)}>
                 {ROLE_OPTIONS.map((role) => (
                   <option key={role.value} value={role.value}>{role.label}</option>
                 ))}
@@ -316,12 +316,12 @@ function AdminConsole() {
         {showTask && (
           <div className="issue" style={{ marginTop: 10 }}>
             <span className="field">
-              <label>Task</label>
-              <input type="text" value={taskName} onChange={(event) => setTaskName(event.target.value)} placeholder="Ship crypto payroll bridge" />
+              <label htmlFor="task-name">Task</label>
+              <input id="task-name" type="text" value={taskName} onChange={(event) => setTaskName(event.target.value)} placeholder="Ship crypto payroll bridge" />
             </span>
             <span className="field">
-              <label>Requires</label>
-              <select value={taskRequired} onChange={(event) => setTaskRequired(event.target.value)}>
+              <label htmlFor="task-required">Requires</label>
+              <select id="task-required" value={taskRequired} onChange={(event) => setTaskRequired(event.target.value)}>
                 {data.certificateTypes.map((type) => (
                   <option key={type.id.toString()} value={type.id.toString()}>{type.name}</option>
                 ))}
@@ -363,8 +363,9 @@ function AdminConsole() {
         {showWorker && (
           <div className="issue" style={{ marginTop: 10 }}>
             <span className="field" style={{ flex: 1, minWidth: 240 }}>
-              <label>Wallet address</label>
+              <label htmlFor="worker-address">Wallet address</label>
               <input
+                id="worker-address"
                 type="text"
                 className="mono"
                 value={workerAddr}
@@ -373,8 +374,8 @@ function AdminConsole() {
               />
             </span>
             <span className="field">
-              <label>Role</label>
-              <select value={workerRole} onChange={(event) => setWorkerRole(event.target.value as Hex)}>
+              <label htmlFor="worker-role">Role</label>
+              <select id="worker-role" value={workerRole} onChange={(event) => setWorkerRole(event.target.value as Hex)}>
                 {ROLE_OPTIONS.map((role) => (
                   <option key={role.value} value={role.value}>{role.label}</option>
                 ))}
@@ -393,8 +394,9 @@ function AdminConsole() {
         </div>
         <div className="issue">
           <span className="field">
-            <label>Worker</label>
+            <label htmlFor="issue-worker">Worker</label>
             <select
+              id="issue-worker"
               value={activeWorker}
               onChange={(event) => {
                 setSelectedWorker(event.target.value as Address);
@@ -409,8 +411,8 @@ function AdminConsole() {
             </select>
           </span>
           <span className="field">
-            <label>Certificate</label>
-            <select value={activeIssueType} onChange={(event) => setIssueType(event.target.value)} disabled={eligibleTypes.length === 0}>
+            <label htmlFor="issue-type">Certificate</label>
+            <select id="issue-type" value={activeIssueType} onChange={(event) => setIssueType(event.target.value)} disabled={eligibleTypes.length === 0}>
               {eligibleTypes.map((type) => (
                 <option key={type.id.toString()} value={type.id.toString()}>{type.name}</option>
               ))}
