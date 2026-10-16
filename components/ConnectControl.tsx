@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useConnect, useConnection, useDisconnect, useSwitchChain } from "wagmi";
 import { skillGateSepolia } from "@/lib/sepolia";
 import { AUTO_ROUTE_KEY } from "@/lib/role-route";
@@ -16,6 +17,7 @@ export function ConnectControl({ compact = false, autoRoute = false }: { compact
   const connect = useConnect();
   const disconnect = useDisconnect();
   const switchChain = useSwitchChain();
+  const [connectorIndex, setConnectorIndex] = useState(0);
 
   if (connection.status === "connected") {
     if (connection.chainId !== skillGateSepolia.id) {
@@ -49,7 +51,7 @@ export function ConnectControl({ compact = false, autoRoute = false }: { compact
     );
   }
 
-  const connector = connect.connectors[0];
+  const connector = connect.connectors[connectorIndex] ?? connect.connectors[0];
 
   function onConnect() {
     if (!connector) return;
@@ -58,11 +60,18 @@ export function ConnectControl({ compact = false, autoRoute = false }: { compact
     if (autoRoute && typeof window !== "undefined") {
       window.sessionStorage.setItem(AUTO_ROUTE_KEY, "1");
     }
-    connect.mutate({ connector });
+    connect.mutate({ connector }, {
+      onError: () => { if (autoRoute) window.sessionStorage.removeItem(AUTO_ROUTE_KEY); }
+    });
   }
 
   return (
     <span className="wallet-control">
+      {connect.connectors.length > 1 && connect.connectors.every((item) => item.type === "mock") ? (
+        <select aria-label="Local validation wallet" value={connectorIndex} onChange={(event) => setConnectorIndex(Number(event.target.value))}>
+          {connect.connectors.map((item, index) => <option key={item.uid} value={index}>{item.name}</option>)}
+        </select>
+      ) : null}
       <button
         className={compact ? "btn sm" : "btn"}
         disabled={!connector || connect.isPending}

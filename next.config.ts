@@ -3,7 +3,7 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   // The app reads all data from Sepolia in the browser, so it ships as a static
-  // export (plain HTML/JS, no server, no keys in the bundle).
+  // export. NEXT_PUBLIC_* settings, including the browser RPC endpoint, are public.
   output: "export",
   images: { unoptimized: true }
 };

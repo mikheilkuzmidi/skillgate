@@ -59,6 +59,7 @@ contract SkillGate is Ownable {
     error CertificateMissing(address holder, uint256 typeId);
     error GateFailed(address employee, uint256 taskId);
     error QuizFailed(address worker, uint256 typeId);
+    error ClaimRevoked(address worker, uint256 typeId);
 
     event EmployeeRegistered(address indexed worker, bytes32 indexed role);
     event IssuerAuthorized(address indexed issuer);
@@ -182,6 +183,11 @@ contract SkillGate is Ownable {
             revert RoleMismatch(worker, workerRole, certType.role);
         }
 
+        // Revocation is an issuer decision. A public quiz answer must not undo it.
+        if (certificates[worker][typeId].revoked) {
+            revert ClaimRevoked(worker, typeId);
+        }
+
         if (certType.quizHash != bytes32(0) && keccak256(bytes(answer)) != certType.quizHash) {
             revert QuizFailed(worker, typeId);
         }
@@ -221,7 +227,9 @@ contract SkillGate is Ownable {
 
     function hasValidCertificate(address holder, uint256 typeId) public view returns (bool) {
         Certificate memory cert = certificates[holder][typeId];
-        return cert.issuedAt != 0 && !cert.revoked && block.timestamp < cert.expiresAt;
+        CertificateType memory certType = certificateTypes[typeId];
+        return isEmployee[holder] && certType.active && employeeRole[holder] == certType.role
+            && cert.issuedAt != 0 && !cert.revoked && block.timestamp < cert.expiresAt;
     }
 
     function canStartTask(address employee, uint256 taskId) public view returns (bool) {
@@ -257,7 +265,7 @@ contract SkillGate is Ownable {
         exists = cert.issuedAt != 0;
         revoked = cert.revoked;
         expired = exists && block.timestamp >= cert.expiresAt;
-        valid = exists && !revoked && !expired;
+        valid = hasValidCertificate(holder, typeId);
     }
 
     function _requireActiveCertificateType(uint256 typeId) private view returns (CertificateType memory certType) {

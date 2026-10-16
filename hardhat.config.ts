@@ -14,6 +14,16 @@ export default defineConfig({
     }
   },
   networks: {
+    localValidation: {
+      type: "edr-simulated",
+      chainType: "l1",
+      chainId: 11155111
+    },
+    localRpc: {
+      type: "http",
+      chainType: "l1",
+      url: "http://127.0.0.1:3151"
+    },
     hardhatMainnet: {
       type: "edr-simulated",
       chainType: "l1"

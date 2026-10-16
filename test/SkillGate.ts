@@ -159,4 +159,39 @@ describe("SkillGate", function () {
       "NotEmployee"
     );
   });
+
+  it("keeps revocation in force even when the worker knows the quiz answer", async function () {
+    const { contract, engineer } = await deployFixture();
+    await contract.write.claimCertificate([2n, answerKey(QUIZZES["2"])], { account: engineer.account });
+    await contract.write.revokeCertificate([engineer.account.address, 2n]);
+    await assertRejectsWith(
+      contract.write.claimCertificate([2n, answerKey(QUIZZES["2"])], { account: engineer.account }),
+      "ClaimRevoked"
+    );
+    assert.equal(await contract.read.canStartTask([engineer.account.address, 2n]), false);
+    // An issuer can deliberately restore access without duplicating the public index.
+    await contract.write.issueCertificate([engineer.account.address, 2n]);
+    assert.equal(await contract.read.canStartTask([engineer.account.address, 2n]), true);
+    assert.equal((await contract.read.getIssuedCertificateRefs()).length, 1);
+  });
+
+  it("removes old-role access immediately after the admin changes a worker's role", async function () {
+    const { contract, engineer } = await deployFixture();
+    await contract.write.issueCertificate([engineer.account.address, 2n]);
+    await contract.write.registerEmployee([engineer.account.address, OPERATOR_ROLE]);
+    assert.equal(await contract.read.hasValidCertificate([engineer.account.address, 2n]), false);
+    assert.equal((await contract.read.getCertificateStatus([engineer.account.address, 2n]))[1], false);
+    await assertRejectsWith(contract.write.startTask([2n], { account: engineer.account }), "GateFailed");
+    assert.equal((await contract.read.getEmployees()).length, 2);
+  });
+
+  it("expires at the exact boundary and can renew an expired credential", async function () {
+    const { contract, engineer, networkHelpers } = await deployFixture();
+    await contract.write.issueCertificate([engineer.account.address, 2n]);
+    const certificate = await contract.read.certificates([engineer.account.address, 2n]);
+    await networkHelpers.time.increaseTo(certificate[3]);
+    assert.deepEqual(await contract.read.getCertificateStatus([engineer.account.address, 2n]), [true, false, true, false]);
+    await contract.write.claimCertificate([2n, answerKey(QUIZZES["2"])], { account: engineer.account });
+    assert.equal(await contract.read.canStartTask([engineer.account.address, 2n]), true);
+  });
 });

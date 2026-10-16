@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { decodeEventLog, getAddress, type Address, type Hex } from "viem";
+import { decodeEventLog, getAddress, type Address, type Hex, type Log } from "viem";
 import { useConnection, useReadContract, useReadContracts } from "wagmi";
 import {
   getDeployBlock,
@@ -47,6 +47,7 @@ export type AuditEventView = {
   name: string;
   blockNumber: bigint;
   transactionHash: Hex;
+  logIndex: number;
   meta: string;
 };
 
@@ -60,24 +61,27 @@ export function useWalletGate() {
   const ownerRead = useReadContract({
     address: contractAddress,
     abi: skillGateAbi,
+    chainId: SEPOLIA_CHAIN_ID as typeof SEPOLIA_CHAIN_ID,
     functionName: "owner",
-    query: { enabled }
+    query: { enabled, refetchInterval: 12_000, retry: 1 }
   });
 
   const employeeRead = useReadContract({
     address: contractAddress,
     abi: skillGateAbi,
+    chainId: SEPOLIA_CHAIN_ID as typeof SEPOLIA_CHAIN_ID,
     functionName: "isEmployee",
     args: address ? [address] : undefined,
-    query: { enabled: enabled && Boolean(address) }
+    query: { enabled: enabled && Boolean(address), refetchInterval: 12_000, retry: 1 }
   });
 
   const roleRead = useReadContract({
     address: contractAddress,
     abi: skillGateAbi,
+    chainId: SEPOLIA_CHAIN_ID as typeof SEPOLIA_CHAIN_ID,
     functionName: "employeeRole",
     args: address ? [address] : undefined,
-    query: { enabled: enabled && Boolean(address) }
+    query: { enabled: enabled && Boolean(address), refetchInterval: 12_000, retry: 1 }
   });
 
   const owner = ownerRead.data ? getAddress(ownerRead.data) : undefined;
@@ -86,6 +90,7 @@ export function useWalletGate() {
   const role = roleRead.data as Hex | undefined;
   const connected = connection.status === "connected";
   const onSepolia = connected && connection.chainId === SEPOLIA_CHAIN_ID;
+  const error = Boolean(ownerRead.error || (connected && (employeeRead.error || roleRead.error)));
 
   return {
     address,
@@ -96,6 +101,7 @@ export function useWalletGate() {
     chainId: connection.chainId,
     onSepolia,
     owner,
+    error,
     isAdmin,
     isEmployee,
     role,
@@ -110,12 +116,12 @@ export function useWalletGate() {
 export function useSkillGateData() {
   const baseRead = useReadContracts({
     contracts: [
-      { address: contractAddress, abi: skillGateAbi, functionName: "certificateTypeCount" },
-      { address: contractAddress, abi: skillGateAbi, functionName: "taskCount" },
-      { address: contractAddress, abi: skillGateAbi, functionName: "getEmployees" },
-      { address: contractAddress, abi: skillGateAbi, functionName: "getIssuedCertificateRefs" }
+      { address: contractAddress, abi: skillGateAbi, chainId: SEPOLIA_CHAIN_ID, functionName: "certificateTypeCount" },
+      { address: contractAddress, abi: skillGateAbi, chainId: SEPOLIA_CHAIN_ID, functionName: "taskCount" },
+      { address: contractAddress, abi: skillGateAbi, chainId: SEPOLIA_CHAIN_ID, functionName: "getEmployees" },
+      { address: contractAddress, abi: skillGateAbi, chainId: SEPOLIA_CHAIN_ID, functionName: "getIssuedCertificateRefs" }
     ],
-    query: { enabled }
+    query: { enabled, refetchInterval: 12_000, retry: 1 }
   });
 
   const typeCount = (baseRead.data?.[0]?.result as bigint | undefined) ?? 0n;
@@ -142,40 +148,44 @@ export function useSkillGateData() {
     contracts: typeIds.map((id) => ({
       address: contractAddress,
       abi: skillGateAbi,
+      chainId: SEPOLIA_CHAIN_ID as typeof SEPOLIA_CHAIN_ID,
       functionName: "certificateTypes",
       args: [id]
     })),
-    query: { enabled: enabled && typeIds.length > 0 }
+    query: { enabled: enabled && typeIds.length > 0, refetchInterval: 12_000, retry: 1 }
   });
 
   const tasksRead = useReadContracts({
     contracts: taskIds.map((id) => ({
       address: contractAddress,
       abi: skillGateAbi,
+      chainId: SEPOLIA_CHAIN_ID as typeof SEPOLIA_CHAIN_ID,
       functionName: "tasks",
       args: [id]
     })),
-    query: { enabled: enabled && taskIds.length > 0 }
+    query: { enabled: enabled && taskIds.length > 0, refetchInterval: 12_000, retry: 1 }
   });
 
   const employeesRead = useReadContracts({
     contracts: employeeAddresses.map((employee) => ({
       address: contractAddress,
       abi: skillGateAbi,
+      chainId: SEPOLIA_CHAIN_ID as typeof SEPOLIA_CHAIN_ID,
       functionName: "employeeRole",
       args: [employee]
     })),
-    query: { enabled: enabled && employeeAddresses.length > 0 }
+    query: { enabled: enabled && employeeAddresses.length > 0, refetchInterval: 12_000, retry: 1 }
   });
 
   const certsRead = useReadContracts({
     contracts: issuedRefs.map((ref) => ({
       address: contractAddress,
       abi: skillGateAbi,
+      chainId: SEPOLIA_CHAIN_ID as typeof SEPOLIA_CHAIN_ID,
       functionName: "certificates",
       args: [ref.holder, ref.typeId]
     })),
-    query: { enabled: enabled && issuedRefs.length > 0 }
+    query: { enabled: enabled && issuedRefs.length > 0, refetchInterval: 12_000, retry: 1 }
   });
 
   const certificateTypes = useMemo<CertificateTypeView[]>(() => {
@@ -263,6 +273,9 @@ export function useSkillGateData() {
       tasksRead.isLoading ||
       employeesRead.isLoading ||
       certsRead.isLoading,
+    error: [baseRead, typesRead, tasksRead, employeesRead, certsRead].some(
+      (read) => Boolean(read.error) || Boolean(read.data?.some((result) => result.status === "failure"))
+    ),
     refetchAll
   };
 }
@@ -272,51 +285,67 @@ export function useTaskGate(employee: Address | undefined, taskIds: bigint[]) {
     contracts: taskIds.map((taskId) => ({
       address: contractAddress,
       abi: skillGateAbi,
+      chainId: SEPOLIA_CHAIN_ID as typeof SEPOLIA_CHAIN_ID,
       functionName: "canStartTask",
       args: [employee as Address, taskId]
     })),
-    query: { enabled: enabled && Boolean(employee) && taskIds.length > 0 }
+    query: { enabled: enabled && Boolean(employee) && taskIds.length > 0, refetchInterval: 12_000, retry: 1 }
   });
 
   return {
     gates: new Map(taskIds.map((id, index) => [id.toString(), Boolean(reads.data?.[index]?.result)])),
+    error: Boolean(reads.error) || Boolean(reads.data?.some((result) => result.status === "failure")),
     refetch: reads.refetch
   };
 }
 
 export function usePublicEvents(typeById: Map<string, CertificateTypeView>, taskById: Map<string, TaskView>) {
-  const [events, setEvents] = useState<AuditEventView[]>([]);
+  const [logs, setLogs] = useState<Log[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
+    if (!contractAddress) return;
     let cancelled = false;
-
-    async function getLogs() {
-      const latest = await publicClient.getBlockNumber();
-      let fromBlock = getDeployBlock();
-      if (fromBlock === 0n) {
-        fromBlock = latest > 9n ? latest - 9n : 0n;
-      }
-      const logs = [];
-      for (let start = fromBlock; start <= latest; start += 10n) {
-        const toBlock = start + 9n > latest ? latest : start + 9n;
-        logs.push(
-          ...(await publicClient.getLogs({
-            address: contractAddress,
-            fromBlock: start,
-            toBlock
-          }))
-        );
-      }
-      return logs;
-    }
+    let timer: number | undefined;
+    let cursor: bigint | undefined;
+    let cached: Log[] = [];
 
     async function load() {
-      if (!contractAddress) return;
       setLoading(true);
       try {
-        const logs = await getLogs();
-        const decoded = logs.flatMap((log) => {
+        const latest = await publicClient.getBlockNumber({ cacheTime: 0 });
+        const floor = latest > 99n ? latest - 99n : 0n;
+        const deployed = getDeployBlock();
+        const windowStart = deployed > floor ? deployed : floor;
+        // Re-read two recent blocks for short reorgs; prune the visible 100-block window.
+        const overlap = cursor && cursor <= latest && cursor > 1n ? cursor - 1n : windowStart;
+        const from = overlap > windowStart ? overlap : windowStart;
+        const fresh: Log[] = [];
+        for (let start = from; start <= latest; start += 10n) {
+          if (cancelled) return;
+          const toBlock = start + 9n > latest ? latest : start + 9n;
+          fresh.push(...await publicClient.getLogs({ address: contractAddress, fromBlock: start, toBlock }));
+        }
+        cached = [...cached.filter((log) => log.blockNumber !== null && log.blockNumber >= windowStart && log.blockNumber <= latest && log.blockNumber < from), ...fresh];
+        cursor = latest;
+        if (!cancelled) { setLogs(cached); setError(false); }
+      } catch {
+        if (!cancelled) setError(true);
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+          // Schedule after completion so a slow RPC cannot overlap the next poll.
+          timer = window.setTimeout(load, 12_000);
+        }
+      }
+    }
+    void load();
+    return () => { cancelled = true; window.clearTimeout(timer); };
+  }, []);
+
+  const events = useMemo<AuditEventView[]>(() => {
+    return logs.flatMap((log) => {
           try {
             const event = decodeEventLog({
               abi: skillGateAbi,
@@ -353,30 +382,15 @@ export function usePublicEvents(typeById: Map<string, CertificateTypeView>, task
                 name: event.eventName,
                 blockNumber: log.blockNumber ?? 0n,
                 transactionHash: log.transactionHash ?? "0x",
+                logIndex: log.logIndex ?? 0,
                 meta
               }
             ];
           } catch {
             return [];
           }
-        });
-
-        decoded.sort((a, b) => Number(b.blockNumber - a.blockNumber));
-        if (!cancelled) setEvents(decoded);
-      } catch {
-        if (!cancelled) setEvents([]);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-
-    load();
-    const id = window.setInterval(load, 12_000);
-    return () => {
-      cancelled = true;
-      window.clearInterval(id);
-    };
-  }, [typeById, taskById]);
-
-  return { events, loading };
+        })
+      .sort((a, b) => Number(b.blockNumber - a.blockNumber) || b.logIndex - a.logIndex);
+  }, [logs, typeById, taskById]);
+  return { events, loading, error };
 }

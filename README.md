@@ -134,7 +134,7 @@ Open the printed localhost URL.
 
 ## Deploy the demo (Cloudflare Pages)
 
-The app is a static export (`output: "export"`), so it ships as plain files with no server and no keys in the bundle.
+The app is a static export (`output: "export"`), so it ships as plain files with no application server or wallet private keys. The browser RPC endpoint in `NEXT_PUBLIC_*` is public and is included in the bundle; configure it accordingly. Deployment keys belong only in server/CLI variables.
 
 ```bash
 pnpm build                 # outputs ./out
@@ -164,3 +164,28 @@ The test suite covers:
 - a worker can self-claim a certificate by passing the on-chain quiz
 - a wrong quiz answer reverts the self-claim
 - role-mismatched and unregistered self-claims revert
+
+
+## Current capstone validation
+
+The updated source passes 13 contract tests covering issuance, role boundaries, expiration at the exact deadline, renewal, revocation and task access. Revoked workers cannot restore their own certificates through the public quiz; an issuer can deliberately reissue. Changing a worker's role immediately invalidates old-role task access. The public verifier uses those same eligibility rules.
+
+The UI waits for successful mined receipts, catches rejected/failed transactions, prevents duplicate submissions while confirmation is pending, and clears console state when the wallet account changes. Read failures show an explicit error and Retry instead of claiming no credentials or treating the wallet as unregistered. Recent activity reads a bounded 100-block window, refreshes incrementally, and never overlaps polls. The unused legacy server-signing API has been removed; claims use the worker wallet.
+
+### Reproduce locally without personal keys
+
+1. Run `pnpm exec hardhat node --network localValidation --hostname 127.0.0.1 --port 3151`.
+2. In another terminal run `pnpm exec hardhat run scripts/validate-local.ts --network localRpc`.
+3. Run `pnpm dev --hostname 127.0.0.1 --port 3152` and open http://127.0.0.1:3152.
+4. The local wallet selector uses only public Hardhat fixture accounts. Exercise engineer quiz/claim/start, admin revoke, operator access and an unregistered wallet. Transactions stay on the loopback node. The rehearsal uses chain ID 11155111 to exercise the same Sepolia-only UI; it is not a public Sepolia deployment.
+
+The fixture script writes an ignored `.env.local` and refuses to overwrite an unrelated existing file. Move that generated file aside before a production build. Local connectors require development mode, the explicit local flag and a loopback RPC; production uses the injected wallet.
+
+### Review and submission boundary
+
+The existing deployment above predates these changes. SkillGate is not upgradeable: the new contract guards require a fresh, explicitly approved deployment; updating frontend files alone cannot change the old contract. No public deployment, repository visibility change, certification submission or recording was performed as part of this validation.
+
+Quiz answers and their hashes are public, and answered transactions can be read on-chain. This verifies the application workflow, not independent competence or completion of regulated workplace training. A real deployment would require trusted assessment/attestation, issuer lifecycle controls and an independent security review. The current small workspace reads employee/certificate lists in full; larger deployments need pagination/indexing.
+
+Alchemy's EVM certification requires the project name, GitHub URL, description and a video no longer than 5 minutes (up to 200 MB). The live URL is optional. Video, reviewer access to the private repository and the final submission remain for the next session.
+Source: https://university.alchemy.com/certifications/evm-chain

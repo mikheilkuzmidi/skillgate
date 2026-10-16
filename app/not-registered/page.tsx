@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
+import { ReadError } from "@/components/ReadError";
 import { Empty, Notice } from "@/components/Status";
 import { useWalletGate } from "@/lib/use-skillgate";
 
@@ -12,11 +13,15 @@ export default function NotRegisteredPage() {
   const gate = useWalletGate();
 
   useEffect(() => {
-    if (gate.connected && !gate.loading) {
+    if (gate.connected && !gate.loading && !gate.error) {
       if (gate.isAdmin) router.replace("/admin");
       if (gate.isEmployee) router.replace("/worker");
     }
-  }, [gate.connected, gate.loading, gate.isAdmin, gate.isEmployee, router]);
+  }, [gate.connected, gate.loading, gate.error, gate.isAdmin, gate.isEmployee, router]);
+
+  if (gate.error) {
+    return <AppShell title="Access unavailable" role="Public" connected={gate.address}><ReadError retry={gate.refetch} /></AppShell>;
+  }
 
   return (
     <AppShell title="Wallet not registered" role="Not registered" connected={gate.address}>
@@ -24,7 +29,9 @@ export default function NotRegisteredPage() {
         <div className="sechead">
           <h2>Access</h2>
         </div>
-        {!gate.connected ? (
+        {gate.loading ? (
+          <Empty>Checking wallet access.</Empty>
+        ) : !gate.connected ? (
           <Empty>Workspace wallet required.</Empty>
         ) : (
           <Notice>Wallet not registered.</Notice>

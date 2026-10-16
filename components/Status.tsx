@@ -14,5 +14,5 @@ export function Empty({ children }: { children: ReactNode }) {
 }
 
 export function Notice({ children }: { children: ReactNode }) {
-  return <div className="notice">{children}</div>;
+  return <div className="notice" role="status">{children}</div>;
 }

@@ -2,34 +2,36 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useSwitchChain, useWriteContract } from "wagmi";
+import { useConnection, useSwitchChain, useWriteContract } from "wagmi";
+import { certificateStatus } from "@/lib/certificate-status";
+import { useNow } from "@/lib/use-now";
 import { AppShell } from "@/components/AppShell";
+import { ReadError } from "@/components/ReadError";
 import { LockIcon, Tick } from "@/components/GateIcons";
 import { Empty, Notice, Status } from "@/components/Status";
 import { expiryLabel } from "@/lib/format";
 import { roleLabel, skillGateAbi } from "@/lib/skillgate";
 import { skillGateSepolia } from "@/lib/sepolia";
 import { QUIZZES, answerKey } from "@/lib/quizzes";
-import { publicClient } from "@/lib/public-client";
+import { confirmTransaction, useTransactionFeedback } from "@/lib/use-transaction-feedback";
 import { useSkillGateData, useTaskGate, useWalletGate, type CertificateTypeView } from "@/lib/use-skillgate";
 
-function certStatus(cert: { expiresAt: bigint; revoked: boolean }) {
-  const expired = BigInt(Math.floor(Date.now() / 1000)) >= cert.expiresAt;
-  return {
-    ok: !cert.revoked && !expired,
-    label: cert.revoked ? "Revoked" : expired ? "Expired" : "Active"
-  };
+export default function WorkerPage() {
+  const connection = useConnection();
+  return <WorkerConsole key={connection.address ?? "disconnected"} />;
 }
 
-export default function WorkerPage() {
+function WorkerConsole() {
   const router = useRouter();
   const gate = useWalletGate();
   const data = useSkillGateData();
+  const now = useNow();
   const write = useWriteContract();
   const switchChain = useSwitchChain();
   const [openQuiz, setOpenQuiz] = useState<string | null>(null);
   const [answers, setAnswers] = useState<Record<string, number[]>>({});
   const [message, setMessage] = useState("");
+  const transaction = useTransactionFeedback(setMessage);
 
   const myCerts = useMemo(() => {
     if (!gate.address) return [];
@@ -40,9 +42,9 @@ export default function WorkerPage() {
     if (!gate.role) return [];
     return data.certificateTypes.filter((type) => {
       if (!type.active || type.role !== gate.role) return false;
-      return !myCerts.some((cert) => cert.typeId === type.id && certStatus(cert).ok);
+      return !myCerts.some((cert) => cert.typeId === type.id && (cert.revoked || certificateStatus(cert, data.typeById.get(cert.typeId.toString()), data.employees.find((employee) => employee.address === cert.holder), now).ok));
     });
-  }, [data.certificateTypes, gate.role, myCerts]);
+  }, [data.certificateTypes, data.typeById, data.employees, gate.role, myCerts, now]);
 
   const myTasks = useMemo(() => {
     if (!gate.role) return [];
@@ -55,11 +57,11 @@ export default function WorkerPage() {
   const taskGate = useTaskGate(gate.address, myTasks.map((task) => task.id));
 
   useEffect(() => {
-    if (gate.connected && !gate.loading) {
+    if (gate.connected && !gate.loading && !gate.error) {
       if (gate.isAdmin) router.replace("/admin");
       else if (!gate.isEmployee) router.replace("/not-registered");
     }
-  }, [gate.connected, gate.loading, gate.isAdmin, gate.isEmployee, router]);
+  }, [gate.connected, gate.loading, gate.error, gate.isAdmin, gate.isEmployee, router]);
 
   function pick(typeId: string, questionIndex: number, optionIndex: number) {
     setAnswers((current) => {
@@ -98,9 +100,11 @@ export default function WorkerPage() {
       abi: skillGateAbi,
       functionName: "claimCertificate",
       args: [type.id, answer],
-      chainId: skillGateSepolia.id
+      chainId: skillGateSepolia.id,
+      account: gate.address
     });
-    await publicClient.waitForTransactionReceipt({ hash, confirmations: 1 });
+    setMessage("Waiting for transaction confirmation.");
+    await confirmTransaction(hash);
     setOpenQuiz(null);
     setAnswers((current) => {
       const next = { ...current };
@@ -123,9 +127,11 @@ export default function WorkerPage() {
       abi: skillGateAbi,
       functionName: "startTask",
       args: [taskId],
-      chainId: skillGateSepolia.id
+      chainId: skillGateSepolia.id,
+      account: gate.address
     });
-    await publicClient.waitForTransactionReceipt({ hash, confirmations: 1 });
+    setMessage("Waiting for transaction confirmation.");
+    await confirmTransaction(hash);
     await data.refetchAll();
     await taskGate.refetch();
     setMessage("Task started.");
@@ -139,6 +145,10 @@ export default function WorkerPage() {
         </section>
       </AppShell>
     );
+  }
+
+  if (gate.error || data.error || taskGate.error) {
+    return <AppShell title="Worker console" role="Access unavailable" connected={gate.address}><ReadError retry={() => Promise.all([gate.refetch(), data.refetchAll(), taskGate.refetch()])} /></AppShell>;
   }
 
   if (!gate.connected) {
@@ -206,7 +216,7 @@ export default function WorkerPage() {
           <h2>Get certified</h2>
         </div>
         {availableTraining.length === 0 ? (
-          <Empty>No training for this role right now.</Empty>
+          <Empty>{myCerts.some((cert) => cert.revoked) ? "Ask an issuer to restore a revoked certificate." : "No training for this role right now."}</Empty>
         ) : (
           availableTraining.map((type) => {
             const tid = type.id.toString();
@@ -232,7 +242,7 @@ export default function WorkerPage() {
                         </button>
                       )
                     ) : (
-                      <button className="btn sm" onClick={() => claim(type)} disabled={write.isPending || !gate.onSepolia}>
+                      <button className="btn sm" onClick={() => transaction.run(() => claim(type))} disabled={transaction.pending || write.isPending || !gate.onSepolia}>
                         {write.isPending ? "Submitting" : "Claim certificate"}
                       </button>
                     )}
@@ -275,8 +285,8 @@ export default function WorkerPage() {
                       </button>
                       <button
                         className="btn sm"
-                        onClick={() => claim(type)}
-                        disabled={!allAnswered || write.isPending || !gate.onSepolia}
+                        onClick={() => transaction.run(() => claim(type))}
+                        disabled={!allAnswered || transaction.pending || write.isPending || !gate.onSepolia}
                       >
                         {write.isPending ? "Submitting" : "Get certificate"}
                       </button>
@@ -297,7 +307,7 @@ export default function WorkerPage() {
           <Empty>No certificates yet.</Empty>
         ) : (
           myCerts.map((cert) => {
-            const status = certStatus(cert);
+            const status = certificateStatus(cert, data.typeById.get(cert.typeId.toString()), data.employees.find((employee) => employee.address === cert.holder), now);
             const certType = data.typeById.get(cert.typeId.toString());
             return (
               <div className="cred" key={`${cert.holder}-${cert.typeId.toString()}`}>
@@ -349,7 +359,7 @@ export default function WorkerPage() {
                   </div>
                 </div>
                 {valid ? (
-                  <button className="btn sm" onClick={() => startTask(task.id)} disabled={write.isPending || !gate.onSepolia}>
+                  <button className="btn sm" onClick={() => transaction.run(() => startTask(task.id))} disabled={transaction.pending || write.isPending || !gate.onSepolia}>
                     Start task
                   </button>
                 ) : (

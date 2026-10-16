@@ -19,7 +19,8 @@ export function NetworkBadge() {
   let label = "Not connected";
   if (connected && onSepolia) {
     state = "ok";
-    label = "Sepolia";
+    label = process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_LOCAL_VALIDATION === "1"
+      ? "Local validation" : "Sepolia";
   } else if (connected) {
     state = "warn";
     label = "Wrong network";

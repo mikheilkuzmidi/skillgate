@@ -4,12 +4,14 @@ import { QueryClient } from "@tanstack/react-query";
 import { createConfig, createStorage, http, injected, noopStorage } from "wagmi";
 import { skillGateSepolia } from "@/lib/sepolia";
 import { getRpcUrl } from "@/lib/skillgate";
+import { localValidationConnectors } from "@/lib/local-validation";
+
+const localConnectors = localValidationConnectors();
 
 export const wagmiConfig = createConfig({
   chains: [skillGateSepolia],
-  connectors: [
-    injected({ target: "metaMask" })
-  ],
+  connectors: localConnectors.length ? localConnectors : [injected({ target: "metaMask" })],
+  multiInjectedProviderDiscovery: localConnectors.length === 0,
   ssr: true,
   storage: createStorage({
     storage: typeof window === "undefined" ? noopStorage : window.localStorage

@@ -43,7 +43,7 @@ export function getDeployBlock(): bigint {
 }
 
 export function getRpcUrl(): string {
-  return process.env.NEXT_PUBLIC_ALCHEMY_SEPOLIA_RPC_URL || process.env.SEPOLIA_RPC_URL || DEFAULT_RPC_URL;
+  return process.env.NEXT_PUBLIC_ALCHEMY_SEPOLIA_RPC_URL || DEFAULT_RPC_URL;
 }
 
 export function roleLabel(role: string | undefined): string {
@@ -52,21 +52,6 @@ export function roleLabel(role: string | undefined): string {
   }
   return ROLE_NAMES_BY_HASH[role] ?? role;
 }
-
-/**
- * The exact string a worker signs to prove they finished the training.
- *
- * The server re-derives this from the address and type id it was given and
- * checks the signature against it, so the message has to be byte-identical on
- * both sides. Keep it here, next to the ABI, rather than inline in the route.
- */
-export const claimMessage = (address: Address, typeId: bigint) =>
-  [
-    "SkillGate training complete",
-    `Worker: ${getAddress(address)}`,
-    `Certificate type: ${typeId.toString()}`,
-    `Workspace: ${WORKSPACE_NAME}`
-  ].join("\n");
 
 export const skillGateAbi = [
   {
@@ -85,6 +70,7 @@ export const skillGateAbi = [
   { type: "error", name: "NotEmployee", inputs: [{ name: "worker", type: "address" }] },
   { type: "error", name: "NotIssuer", inputs: [{ name: "caller", type: "address" }] },
   { type: "error", name: "QuizFailed", inputs: [{ name: "worker", type: "address" }, { name: "typeId", type: "uint256" }] },
+  { type: "error", name: "ClaimRevoked", inputs: [{ name: "worker", type: "address" }, { name: "typeId", type: "uint256" }] },
   {
     type: "error",
     name: "RoleMismatch",

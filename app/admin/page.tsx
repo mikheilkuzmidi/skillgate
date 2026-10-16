@@ -2,15 +2,18 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useSwitchChain, useWriteContract } from "wagmi";
+import { useConnection, useSwitchChain, useWriteContract } from "wagmi";
 import { getAddress, isAddress, type Address, type Hex } from "viem";
+import { certificateStatus } from "@/lib/certificate-status";
+import { useNow } from "@/lib/use-now";
 import { AppShell } from "@/components/AppShell";
+import { ReadError } from "@/components/ReadError";
 import { Empty, Notice, Status } from "@/components/Status";
 import { daysFromSeconds, expiryLabel, shortAddress } from "@/lib/format";
 import { ENGINEER_ROLE, OPERATOR_ROLE, ROLE_LABELS, roleLabel, skillGateAbi } from "@/lib/skillgate";
 import { skillGateSepolia } from "@/lib/sepolia";
 import { ZERO_HASH } from "@/lib/quizzes";
-import { publicClient } from "@/lib/public-client";
+import { confirmTransaction, useTransactionFeedback } from "@/lib/use-transaction-feedback";
 import { useSkillGateData, useWalletGate } from "@/lib/use-skillgate";
 
 const ROLE_OPTIONS = [
@@ -18,21 +21,20 @@ const ROLE_OPTIONS = [
   { label: ROLE_LABELS.engineer, value: ENGINEER_ROLE }
 ];
 
-function certStatus(cert: { expiresAt: bigint; revoked: boolean }) {
-  const expired = BigInt(Math.floor(Date.now() / 1000)) >= cert.expiresAt;
-  return {
-    ok: !cert.revoked && !expired,
-    label: cert.revoked ? "Revoked" : expired ? "Expired" : "Active"
-  };
+export default function AdminPage() {
+  const connection = useConnection();
+  return <AdminConsole key={connection.address ?? "disconnected"} />;
 }
 
-export default function AdminPage() {
+function AdminConsole() {
   const router = useRouter();
   const gate = useWalletGate();
   const data = useSkillGateData();
+  const now = useNow();
   const write = useWriteContract();
   const switchChain = useSwitchChain();
   const [message, setMessage] = useState("");
+  const transaction = useTransactionFeedback(setMessage);
 
   const [showType, setShowType] = useState(false);
   const [typeName, setTypeName] = useState("");
@@ -60,13 +62,14 @@ export default function AdminPage() {
     : eligibleTypes[0]?.id.toString() ?? "";
 
   useEffect(() => {
-    if (gate.connected && !gate.loading && !gate.isAdmin) {
+    if (gate.connected && !gate.loading && !gate.error && !gate.isAdmin) {
       router.replace(gate.isEmployee ? "/worker" : "/not-registered");
     }
-  }, [gate.connected, gate.loading, gate.isAdmin, gate.isEmployee, router]);
+  }, [gate.connected, gate.loading, gate.error, gate.isAdmin, gate.isEmployee, router]);
 
   async function wait(hash: `0x${string}`) {
-    await publicClient.waitForTransactionReceipt({ hash, confirmations: 1 });
+    setMessage("Waiting for transaction confirmation.");
+    await confirmTransaction(hash);
     await data.refetchAll();
     await gate.refetch();
   }
@@ -80,9 +83,13 @@ export default function AdminPage() {
   async function createType() {
     if (!gate.contractAddress || !typeName.trim()) return;
     if (!requireSepolia()) return;
-    const days = BigInt(Number(typeDays || "0"));
-    if (days <= 0n) {
-      setMessage("Enter a validity period greater than zero.");
+    if (!/^[1-9]\d*$/.test(typeDays)) {
+      setMessage("Enter a whole number of days greater than zero.");
+      return;
+    }
+    const days = BigInt(typeDays);
+    if (days > ((1n << 256n) - 1n) / 86_400n) {
+      setMessage("The validity period is too large.");
       return;
     }
     const hash = await write.mutateAsync({
@@ -90,7 +97,8 @@ export default function AdminPage() {
       abi: skillGateAbi,
       functionName: "createCertificateType",
       args: [typeName.trim(), days * 86_400n, typeRole, ZERO_HASH],
-      chainId: skillGateSepolia.id
+      chainId: skillGateSepolia.id,
+      account: gate.address
     });
     await wait(hash);
     setTypeName("");
@@ -107,7 +115,8 @@ export default function AdminPage() {
       abi: skillGateAbi,
       functionName: "createTask",
       args: [taskName.trim(), BigInt(taskRequired)],
-      chainId: skillGateSepolia.id
+      chainId: skillGateSepolia.id,
+      account: gate.address
     });
     await wait(hash);
     setTaskName("");
@@ -128,7 +137,8 @@ export default function AdminPage() {
       abi: skillGateAbi,
       functionName: "registerEmployee",
       args: [getAddress(addr), workerRole],
-      chainId: skillGateSepolia.id
+      chainId: skillGateSepolia.id,
+      account: gate.address
     });
     await wait(hash);
     setWorkerAddr("");
@@ -144,7 +154,8 @@ export default function AdminPage() {
       abi: skillGateAbi,
       functionName: "issueCertificate",
       args: [activeWorker, BigInt(activeIssueType)],
-      chainId: skillGateSepolia.id
+      chainId: skillGateSepolia.id,
+      account: gate.address
     });
     await wait(hash);
     setMessage("Certificate issued.");
@@ -158,7 +169,8 @@ export default function AdminPage() {
       abi: skillGateAbi,
       functionName: "revokeCertificate",
       args: [holder, typeId],
-      chainId: skillGateSepolia.id
+      chainId: skillGateSepolia.id,
+      account: gate.address
     });
     await wait(hash);
     setMessage("Certificate revoked.");
@@ -172,6 +184,10 @@ export default function AdminPage() {
         </section>
       </AppShell>
     );
+  }
+
+  if (gate.error || data.error) {
+    return <AppShell title="Admin console" role="Access unavailable" connected={gate.address}><ReadError retry={() => Promise.all([gate.refetch(), data.refetchAll()])} /></AppShell>;
   }
 
   if (!gate.connected) {
@@ -268,7 +284,7 @@ export default function AdminPage() {
                 ))}
               </select>
             </span>
-            <button className="btn sm" onClick={createType} disabled={write.isPending}>Create type</button>
+            <button className="btn sm" onClick={() => transaction.run(createType)} disabled={transaction.pending || write.isPending || !gate.onSepolia}>Create type</button>
           </div>
         )}
       </section>
@@ -311,7 +327,7 @@ export default function AdminPage() {
                 ))}
               </select>
             </span>
-            <button className="btn sm" onClick={createTask} disabled={write.isPending}>Create task</button>
+            <button className="btn sm" onClick={() => transaction.run(createTask)} disabled={transaction.pending || write.isPending || !gate.onSepolia}>Create task</button>
           </div>
         )}
       </section>
@@ -364,7 +380,7 @@ export default function AdminPage() {
                 ))}
               </select>
             </span>
-            <button className="btn sm" onClick={registerWorker} disabled={write.isPending}>
+            <button className="btn sm" onClick={() => transaction.run(registerWorker)} disabled={transaction.pending || write.isPending || !gate.onSepolia}>
               Register worker
             </button>
           </div>
@@ -400,7 +416,7 @@ export default function AdminPage() {
               ))}
             </select>
           </span>
-          <button className="btn sm" onClick={issueCertificate} disabled={!activeIssueType || write.isPending}>
+          <button className="btn sm" onClick={() => transaction.run(issueCertificate)} disabled={!activeIssueType || transaction.pending || write.isPending || !gate.onSepolia}>
             Issue certificate
           </button>
         </div>
@@ -425,7 +441,7 @@ export default function AdminPage() {
             </thead>
             <tbody>
               {data.certificates.map((cert) => {
-                const status = certStatus(cert);
+                const status = certificateStatus(cert, data.typeById.get(cert.typeId.toString()), data.employees.find((employee) => employee.address === cert.holder), now);
                 return (
                   <tr key={`${cert.holder}-${cert.typeId.toString()}`}>
                     <td className="mono">{shortAddress(cert.holder)}</td>
@@ -438,8 +454,8 @@ export default function AdminPage() {
                       {!cert.revoked && (
                         <button
                           className="btn ghost sm"
-                          onClick={() => revokeCertificate(cert.holder, cert.typeId)}
-                          disabled={write.isPending}
+                          onClick={() => transaction.run(() => revokeCertificate(cert.holder, cert.typeId))}
+                          disabled={transaction.pending || write.isPending || !gate.onSepolia}
                         >
                           Revoke
                         </button>
