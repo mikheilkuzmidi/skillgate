@@ -10,8 +10,7 @@
     "lint": "eslint .",
     "compile": "hardhat compile",
     "test": "hardhat test",
-    "deploy:sepolia": "hardhat run scripts/deploy.ts --build-profile production --network sepolia",
-    "deploy:cloudflare": "wrangler pages deploy out --project-name skillgate"
+    "deploy:sepolia": "hardhat run scripts/deploy.ts --build-profile production --network sepolia"
   },
   "dependencies": {
     "@tanstack/react-query": "5.101.0",

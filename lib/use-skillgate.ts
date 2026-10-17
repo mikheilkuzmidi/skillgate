@@ -301,7 +301,7 @@ export function useTaskGate(employee: Address | undefined, taskIds: bigint[]) {
 
 export function usePublicEvents(typeById: Map<string, CertificateTypeView>, taskById: Map<string, TaskView>) {
   const [logs, setLogs] = useState<Log[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(enabled);
   const [error, setError] = useState(false);
 
   useEffect(() => {
@@ -373,9 +373,9 @@ export function usePublicEvents(typeById: Map<string, CertificateTypeView>, task
             } else if (event.eventName === "EmployeeRegistered") {
               const worker = args.worker as Address;
               meta = `${worker.slice(0, 6)}...${worker.slice(-4)} / ${roleLabel(args.role as Hex)}`;
-            } else if (event.eventName === "IssuerAuthorized") {
+            } else if (event.eventName === "IssuerAuthorized" || event.eventName === "IssuerRevoked") {
               const issuer = args.issuer as Address;
-              meta = issuer;
+              meta = `${issuer.slice(0, 6)}...${issuer.slice(-4)} / ${event.eventName === "IssuerAuthorized" ? "issuer" : "issuer removed"}`;
             }
             return [
               {

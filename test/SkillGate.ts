@@ -194,4 +194,58 @@ describe("SkillGate", function () {
     await contract.write.claimCertificate([2n, answerKey(QUIZZES["2"])], { account: engineer.account });
     assert.equal(await contract.read.canStartTask([engineer.account.address, 2n]), true);
   });
+
+  it("lets the admin remove an issuer, who can then no longer issue or revoke", async function () {
+    const { contract, issuer, engineer } = await deployFixture();
+
+    await contract.write.issueCertificate([engineer.account.address, 2n], { account: issuer.account });
+    await contract.write.revokeIssuer([issuer.account.address]);
+
+    assert.equal(await contract.read.isIssuer([issuer.account.address]), false);
+    await assertRejectsWith(
+      contract.write.revokeCertificate([engineer.account.address, 2n], { account: issuer.account }),
+      "NotIssuer"
+    );
+    await assertRejectsWith(
+      contract.write.issueCertificate([engineer.account.address, 2n], { account: issuer.account }),
+      "NotIssuer"
+    );
+    // Certificates the removed issuer already granted stay valid.
+    assert.equal(await contract.read.hasValidCertificate([engineer.account.address, 2n]), true);
+  });
+
+  it("allows only the admin to manage issuers", async function () {
+    const { contract, issuer, outsider } = await deployFixture();
+
+    await assertRejectsWith(
+      contract.write.authorizeIssuer([outsider.account.address], { account: outsider.account }),
+      "NotAdmin"
+    );
+    await assertRejectsWith(
+      contract.write.revokeIssuer([issuer.account.address], { account: outsider.account }),
+      "NotAdmin"
+    );
+  });
+
+  it("hands the workspace to a new admin", async function () {
+    const { contract, owner, engineer, outsider } = await deployFixture();
+    const answer = answerKey(QUIZZES["2"]);
+
+    await contract.write.authorizeIssuer([outsider.account.address]);
+    await contract.write.transferOwnership([outsider.account.address]);
+    await contract.write.revokeIssuer([owner.account.address], { account: outsider.account });
+
+    await assertRejectsWith(
+      contract.write.registerEmployee([owner.account.address, ENGINEER_ROLE], { account: owner.account }),
+      "NotAdmin"
+    );
+    await contract.write.claimCertificate([2n, answer], { account: engineer.account });
+    await assertRejectsWith(
+      contract.write.revokeCertificate([engineer.account.address, 2n], { account: owner.account }),
+      "NotIssuer"
+    );
+    await contract.write.revokeCertificate([engineer.account.address, 2n], { account: outsider.account });
+    assert.equal(await contract.read.canStartTask([engineer.account.address, 2n]), false);
+  });
+
 });

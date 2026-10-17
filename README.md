@@ -1,5 +1,7 @@
 # SkillGate
 
+![SkillGate admin console: certificate types, tasks, workers and issued certificates](docs/app.png)
+
 SkillGate is a Sepolia dApp for role-scoped workforce certificates. A company deploys one contract, registers workers, defines certificate types, issues non-transferable credentials, and gates work behind valid credentials.
 
 This project is built as an Alchemy Ethereum Bootcamp capstone-style product: Solidity contract logic, wallet-based writes, Alchemy Sepolia RPC, event-backed public reads, and a complete frontend.
@@ -24,9 +26,12 @@ The default workspace is Granary Foods:
 ## Deployed
 
 - Network: Ethereum Sepolia
-- Contract: `0x36e7F8138427f46b56F2Edd26c684D32c770D527` ([Etherscan](https://sepolia.etherscan.io/address/0x36e7F8138427f46b56F2Edd26c684D32c770D527))
-- Deploy block: `11086829`
-- Live demo: https://skillgate.pages.dev
+- Contract: `0x081555D1c8d13120D47FF9A2F3Dc5aaee1bc3223` ([Etherscan](https://sepolia.etherscan.io/address/0x081555D1c8d13120D47FF9A2F3Dc5aaee1bc3223#code), source verified)
+- Deploy block: `11935649`
+- Admin and issuer: `0x608Ad3e991d33bEFbc92E588567C6604028001da` (handed over by the deploy script; the deploying key keeps no rights)
+- Walkthrough transactions, signed in MetaMask (MetaMask sent them through its smart-account delegation, so on Etherscan they appear as calls via MetaMask's delegation contract, with SkillGate's events in the logs): engineer claim [`0xd609…0cc8`](https://sepolia.etherscan.io/tx/0xd609ee563f6bfd7d2a8d9bbab3840b60cfc776ee0fd79717f587e1e8eee90cc8), task start [`0x7942…9302`](https://sepolia.etherscan.io/tx/0x79421d15aa28319fec14abbfe9045036a9e4770cdbb71e74fdd24292e2c69302), admin revoke [`0x2a23…161a`](https://sepolia.etherscan.io/tx/0x2a2382f1296155057cdb06b01bebeacaddee67a3a053e6d9abe317196eca161a)
+- Earlier deployments (`0x36e7…D527` with older code, and test deployments made while recording the walkthrough) are no longer used. Contracts are immutable, so they stay on chain.
+- There is no hosted web app. Run the app locally (see Run).
 
 ## Stack
 
@@ -124,6 +129,8 @@ Deploy to Sepolia:
 pnpm deploy:sepolia
 ```
 
+Optional: `NEW_ADMIN_ADDRESS` hands the workspace to another wallet after setup (the deploying key authorizes it as issuer, removes its own issuer right and transfers ownership), and `MAX_PRIORITY_FEE_GWEI` sets a low priority fee for cheap testnet deploys.
+
 Start locally:
 
 ```bash
@@ -131,17 +138,6 @@ pnpm dev
 ```
 
 Open the printed localhost URL.
-
-## Deploy the demo (Cloudflare Pages)
-
-The app is a static export (`output: "export"`), so it ships as plain files with no application server or wallet private keys. The browser RPC endpoint in `NEXT_PUBLIC_*` is public and is included in the bundle; configure it accordingly. Deployment keys belong only in server/CLI variables.
-
-```bash
-pnpm build                 # outputs ./out
-pnpm deploy:cloudflare     # wrangler pages deploy out
-```
-
-The first deploy prompts a one-time `wrangler login` and returns a `*.pages.dev` URL (no custom domain needed). Rebuild and redeploy after changing `.env`, since `NEXT_PUBLIC_*` values are baked in at build time.
 
 ## Demo Flow
 
@@ -168,7 +164,7 @@ The test suite covers:
 
 ## Current capstone validation
 
-The updated source passes 13 contract tests covering issuance, role boundaries, expiration at the exact deadline, renewal, revocation and task access. Revoked workers cannot restore their own certificates through the public quiz; an issuer can deliberately reissue. Changing a worker's role immediately invalidates old-role task access. The public verifier uses those same eligibility rules.
+The updated source passes 16 contract tests covering issuance, role boundaries, expiration at the exact deadline, renewal, revocation and task access. Revoked workers cannot restore their own certificates through the public quiz; an issuer can deliberately reissue. Changing a worker's role immediately invalidates old-role task access. The public verifier uses those same eligibility rules.
 
 The UI waits for successful mined receipts, catches rejected/failed transactions, prevents duplicate submissions while confirmation is pending, and clears console state when the wallet account changes. Read failures show an explicit error and Retry instead of claiming no credentials or treating the wallet as unregistered. Recent activity reads a bounded 100-block window, refreshes incrementally, and never overlaps polls. The unused legacy server-signing API has been removed; claims use the worker wallet.
 
@@ -183,7 +179,7 @@ The fixture script writes an ignored `.env.local` and refuses to overwrite an un
 
 ### Review and submission boundary
 
-The existing deployment above predates these changes. SkillGate is not upgradeable: the new contract guards require a fresh, explicitly approved deployment; updating frontend files alone cannot change the old contract. No public deployment, repository visibility change or certification submission was performed. A separate walkthrough was recorded on the local validation network for owner review.
+The current contract above was deployed to Sepolia from a throwaway demo admin wallet, and the walkthrough video was recorded against it with the demo wallets. The earlier deployment predates these changes; SkillGate is not upgradeable, so it was replaced rather than updated. No web app is hosted, and no repository visibility change or certification submission was performed.
 
 Quiz answers and their hashes are public, and answered transactions can be read on-chain. This verifies the application workflow, not independent competence or completion of regulated workplace training. A real deployment would require trusted assessment/attestation, issuer lifecycle controls and an independent security review. The current small workspace reads employee/certificate lists in full; larger deployments need pagination/indexing.
 

@@ -11,6 +11,6 @@ export function certificateStatus(
     : !type?.active ? "Inactive"
     : !employee ? "Not registered"
     : employee.role !== type.role ? "Role changed"
-    : "Active";
-  return { ok: label === "Active", label };
+    : "Valid";
+  return { ok: label === "Valid", label };
 }

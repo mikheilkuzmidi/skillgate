@@ -2,10 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useConnection, useSwitchChain, useWriteContract } from "wagmi";
+import { useConnection, useWriteContract } from "wagmi";
 import { getAddress, isAddress, type Address, type Hex } from "viem";
 import { certificateStatus } from "@/lib/certificate-status";
 import { useNow } from "@/lib/use-now";
+import { useArrivedFromVerifier } from "@/lib/role-route";
 import { AppShell } from "@/components/AppShell";
 import { ReadError } from "@/components/ReadError";
 import { Empty, Notice, Status } from "@/components/Status";
@@ -13,7 +14,7 @@ import { daysFromSeconds, expiryLabel, shortAddress } from "@/lib/format";
 import { ENGINEER_ROLE, OPERATOR_ROLE, ROLE_LABELS, roleLabel, skillGateAbi } from "@/lib/skillgate";
 import { skillGateSepolia } from "@/lib/sepolia";
 import { ZERO_HASH } from "@/lib/quizzes";
-import { confirmTransaction, useTransactionFeedback } from "@/lib/use-transaction-feedback";
+import { WRONG_NETWORK, confirmTransaction, useTransactionFeedback } from "@/lib/use-transaction-feedback";
 import { useSkillGateData, useWalletGate } from "@/lib/use-skillgate";
 
 const ROLE_OPTIONS = [
@@ -29,10 +30,10 @@ export default function AdminPage() {
 function AdminConsole() {
   const router = useRouter();
   const gate = useWalletGate();
+  useArrivedFromVerifier();
   const data = useSkillGateData();
   const now = useNow();
   const write = useWriteContract();
-  const switchChain = useSwitchChain();
   const [message, setMessage] = useState("");
   const transaction = useTransactionFeedback(setMessage);
 
@@ -178,7 +179,7 @@ function AdminConsole() {
 
   if (!gate.configured) {
     return (
-      <AppShell title="Admin console" role="Admin" connected={gate.address}>
+      <AppShell title="Admin console" role="Admin" connected={gate.address} tone="admin" subtitle="Set up certificates, tasks and workers. Issue and revoke certificates.">
         <section className="sec">
           <Notice>Set the SkillGate contract address and Alchemy Sepolia RPC URL before using Admin.</Notice>
         </section>
@@ -187,12 +188,12 @@ function AdminConsole() {
   }
 
   if (gate.error || data.error) {
-    return <AppShell title="Admin console" role="Access unavailable" connected={gate.address}><ReadError retry={() => Promise.all([gate.refetch(), data.refetchAll()])} /></AppShell>;
+    return <AppShell title="Admin console" role="Access unavailable" connected={gate.address} tone="admin" subtitle="Set up certificates, tasks and workers. Issue and revoke certificates."><ReadError retry={() => Promise.all([gate.refetch(), data.refetchAll()])} /></AppShell>;
   }
 
   if (!gate.connected) {
     return (
-      <AppShell title="Admin console" role="Admin" connected={gate.address}>
+      <AppShell title="Admin console" role="Not connected" connected={gate.address} tone="admin" subtitle="Set up certificates, tasks and workers. Issue and revoke certificates.">
         <section className="sec">
           <div className="sechead">
             <h2>Wallet</h2>
@@ -205,8 +206,11 @@ function AdminConsole() {
 
   if (gate.loading || !gate.isAdmin) {
     return (
-      <AppShell title="Admin console" role={gate.roleName} connected={gate.address}>
+      <AppShell title="Admin console" role="Checking wallet" connected={gate.address} tone="admin" subtitle="Set up certificates, tasks and workers. Issue and revoke certificates.">
         <section className="sec">
+          <div className="sechead">
+            <h2>Wallet</h2>
+          </div>
           <Empty>Checking wallet access.</Empty>
         </section>
       </AppShell>
@@ -214,30 +218,10 @@ function AdminConsole() {
   }
 
   return (
-    <AppShell title="Admin console" role="Admin" connected={gate.address}>
-      {message && (
-        <section className="sec">
-          <Notice>{message}</Notice>
-        </section>
-      )}
+    <AppShell title="Admin console" role="Admin" connected={gate.address} status={gate.connected && !gate.onSepolia ? WRONG_NETWORK : message} tone="admin" subtitle="Set up certificates, tasks and workers. Issue and revoke certificates.">
 
-      {gate.connected && !gate.onSepolia && (
-        <section className="sec">
-          <div className="banner">
-            <span>
-              Your wallet is on the wrong network. SkillGate runs on the <b>Sepolia</b> test network (free test ETH, no real fees).
-            </span>
-            <button
-              className="btn sm"
-              disabled={switchChain.isPending}
-              onClick={() => switchChain.mutate({ chainId: skillGateSepolia.id })}
-            >
-              {switchChain.isPending ? "Switching" : "Switch to Sepolia"}
-            </button>
-          </div>
-        </section>
-      )}
 
+      <div className="grid2">
       <section className="sec">
         <div className="sechead">
           <h2>Certificate types</h2>
@@ -252,7 +236,6 @@ function AdminConsole() {
               <th>Name</th>
               <th>Validity</th>
               <th>Role</th>
-              <th>Issuer</th>
             </tr>
           </thead>
           <tbody>
@@ -261,7 +244,6 @@ function AdminConsole() {
                 <td className="name">{type.name}</td>
                 <td className="mono">{daysFromSeconds(type.validityPeriod)} days</td>
                 <td>{roleLabel(type.role)}</td>
-                <td className="mono" style={{ color: "var(--muted)" }}>{shortAddress(type.issuer)}</td>
               </tr>
             ))}
           </tbody>
@@ -270,7 +252,7 @@ function AdminConsole() {
           <div className="issue" style={{ marginTop: 10 }}>
             <span className="field">
               <label htmlFor="certificate-name">Name</label>
-              <input id="certificate-name" type="text" value={typeName} onChange={(event) => setTypeName(event.target.value)} placeholder="Solidity and Ethereum" />
+              <input id="certificate-name" type="text" value={typeName} onChange={(event) => setTypeName(event.target.value)} placeholder="Certificate name" />
             </span>
             <span className="field">
               <label htmlFor="certificate-days">Days</label>
@@ -317,7 +299,7 @@ function AdminConsole() {
           <div className="issue" style={{ marginTop: 10 }}>
             <span className="field">
               <label htmlFor="task-name">Task</label>
-              <input id="task-name" type="text" value={taskName} onChange={(event) => setTaskName(event.target.value)} placeholder="Ship crypto payroll bridge" />
+              <input id="task-name" type="text" value={taskName} onChange={(event) => setTaskName(event.target.value)} placeholder="Task name" />
             </span>
             <span className="field">
               <label htmlFor="task-required">Requires</label>
@@ -332,6 +314,9 @@ function AdminConsole() {
         )}
       </section>
 
+      </div>
+
+      <div className="grid2b">
       <section className="sec">
         <div className="sechead">
           <h2>Workers</h2>
@@ -424,6 +409,8 @@ function AdminConsole() {
         </div>
       </section>
 
+      </div>
+
       <section className="sec">
         <div className="sechead">
           <h2>Issued</h2>
@@ -431,7 +418,7 @@ function AdminConsole() {
         {data.certificates.length === 0 ? (
           <Empty>No certificates issued.</Empty>
         ) : (
-          <table>
+          <table className="issued">
             <thead>
               <tr>
                 <th>Worker</th>

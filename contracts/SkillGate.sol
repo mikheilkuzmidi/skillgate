@@ -3,6 +3,11 @@ pragma solidity ^0.8.35;
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
+/// @title SkillGate
+/// @notice Role-scoped workforce certificates that gate work. An admin registers workers and
+/// defines certificate types and tasks; workers earn a certificate by passing its quiz or from an
+/// issuer; a task can start only while the worker holds a valid certificate for it.
+/// @dev Certificates are contract state, not tokens: they cannot be transferred.
 contract SkillGate is Ownable {
     struct CertificateType {
         string name;
@@ -63,6 +68,7 @@ contract SkillGate is Ownable {
 
     event EmployeeRegistered(address indexed worker, bytes32 indexed role);
     event IssuerAuthorized(address indexed issuer);
+    event IssuerRevoked(address indexed issuer);
     event CertificateTypeCreated(uint256 indexed typeId, string name, uint256 validityPeriod);
     event CertificateIssued(address indexed holder, uint256 indexed typeId, uint256 expiresAt);
     event CertificateRevoked(address indexed holder, uint256 indexed typeId);
@@ -91,6 +97,7 @@ contract SkillGate is Ownable {
         emit IssuerAuthorized(initialOwner);
     }
 
+    /// @notice Registers a worker, or changes their role. A role change invalidates certificates for the old role.
     function registerEmployee(address worker, bytes32 role) external onlyAdmin {
         if (worker == address(0)) {
             revert ZeroAddress();
@@ -106,6 +113,7 @@ contract SkillGate is Ownable {
         emit EmployeeRegistered(worker, role);
     }
 
+    /// @notice Allows an address to issue and revoke certificates.
     function authorizeIssuer(address issuer) external onlyAdmin {
         if (issuer == address(0)) {
             revert ZeroAddress();
@@ -114,6 +122,17 @@ contract SkillGate is Ownable {
         emit IssuerAuthorized(issuer);
     }
 
+    /// @notice Removes an issuer. Certificates it already issued stay as they are.
+    function revokeIssuer(address issuer) external onlyAdmin {
+        if (issuer == address(0)) {
+            revert ZeroAddress();
+        }
+        isIssuer[issuer] = false;
+        emit IssuerRevoked(issuer);
+    }
+
+    /// @notice Defines a certificate for one role. A non-zero quiz hash lets workers self-claim with the answer.
+    /// @return typeId The new certificate type's id, starting at 1.
     function createCertificateType(
         string calldata name,
         uint256 validityPeriod,
@@ -143,6 +162,8 @@ contract SkillGate is Ownable {
         emit CertificateTypeCreated(typeId, name, validityPeriod);
     }
 
+    /// @notice Creates a task that requires a valid certificate of `requiredTypeId` to start.
+    /// @return taskId The new task's id, starting at 1.
     function createTask(string calldata name, uint256 requiredTypeId) external onlyAdmin returns (uint256 taskId) {
         if (bytes(name).length == 0) {
             revert EmptyName();
@@ -154,6 +175,7 @@ contract SkillGate is Ownable {
         emit TaskCreated(taskId, name, requiredTypeId);
     }
 
+    /// @notice Issues (or renews) a certificate to a registered worker whose role matches the type.
     function issueCertificate(address holder, uint256 typeId) external onlyIssuer {
         if (!isEmployee[holder]) {
             revert NotEmployee(holder);
@@ -213,6 +235,7 @@ contract SkillGate is Ownable {
         emit CertificateIssued(holder, typeId, expiresAt);
     }
 
+    /// @notice Revokes a worker's certificate. Only the admin or an issuer can revoke.
     function revokeCertificate(address holder, uint256 typeId) external {
         if (msg.sender != owner() && !isIssuer[msg.sender]) {
             revert NotIssuer(msg.sender);
@@ -225,6 +248,7 @@ contract SkillGate is Ownable {
         emit CertificateRevoked(holder, typeId);
     }
 
+    /// @notice True while the holder is registered in the type's role and the certificate is issued, unrevoked and unexpired.
     function hasValidCertificate(address holder, uint256 typeId) public view returns (bool) {
         Certificate memory cert = certificates[holder][typeId];
         CertificateType memory certType = certificateTypes[typeId];
@@ -232,11 +256,13 @@ contract SkillGate is Ownable {
             && cert.issuedAt != 0 && !cert.revoked && block.timestamp < cert.expiresAt;
     }
 
+    /// @notice True when the task is active and the employee holds a valid certificate for it.
     function canStartTask(address employee, uint256 taskId) public view returns (bool) {
         Task memory task = tasks[taskId];
         return task.active && isEmployee[employee] && hasValidCertificate(employee, task.requiredTypeId);
     }
 
+    /// @notice Starts a task. The certificate check runs on every start.
     function startTask(uint256 taskId) external {
         Task memory task = tasks[taskId];
         if (!task.active) {
@@ -248,14 +274,17 @@ contract SkillGate is Ownable {
         emit TaskStarted(msg.sender, taskId);
     }
 
+    /// @notice All registered worker addresses.
     function getEmployees() external view returns (address[] memory) {
         return employees;
     }
 
+    /// @notice Every (holder, type) pair that has ever been issued, for listing certificates.
     function getIssuedCertificateRefs() external view returns (IssuedCertificateRef[] memory) {
         return issuedCertificates;
     }
 
+    /// @notice Status flags for one holder and certificate type.
     function getCertificateStatus(address holder, uint256 typeId)
         external
         view

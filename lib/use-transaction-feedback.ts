@@ -4,6 +4,10 @@ import { useRef, useState } from "react";
 import { BaseError, ContractFunctionRevertedError, type Hex } from "viem";
 import { publicClient } from "@/lib/public-client";
 
+// Shown in the console header's status row while the wallet is on another chain; the header's
+// "Use Sepolia" button switches it.
+export const WRONG_NETWORK = "Your wallet is on another network. Use Sepolia to continue.";
+
 function friendlyError(error: unknown): string {
   if (error instanceof BaseError) {
     const reverted = error.walk((cause) => cause instanceof ContractFunctionRevertedError);

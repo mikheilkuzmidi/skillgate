@@ -20,7 +20,7 @@ export function NetworkBadge() {
   if (connected && onSepolia) {
     state = "ok";
     label = process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_LOCAL_VALIDATION === "1"
-      ? "Local validation" : "Sepolia";
+      ? "Local Hardhat" : "Sepolia";
   } else if (connected) {
     state = "warn";
     label = "Wrong network";
@@ -42,8 +42,8 @@ export function NetworkBadge() {
         ) : null}
       </div>
       {contract ? (
-        <span className="net-contract mono" title="SkillGate contract">
-          {shortAddress(contract)}
+        <span className="net-contract" title="SkillGate contract">
+          Contract <span className="mono">{shortAddress(contract)}</span>
         </span>
       ) : null}
     </div>

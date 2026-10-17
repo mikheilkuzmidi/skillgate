@@ -23,6 +23,8 @@ a {
   color: inherit;
 }
 
+/* Monochrome palette: black, white and greys. Red marks only revoked and locked states.
+   Screens are told apart by their role label, title and layout. */
 .sg {
   --page: #ffffff;
   --surface: #ffffff;
@@ -31,8 +33,22 @@ a {
   --line: #e6e6e6;
   --line-2: #d7d7d7;
   --chip: #f5f5f4;
-  --invert-bg: #111111;
-  --invert-ink: #ffffff;
+  --accent: #111111;
+  --accent-strong: #111111;
+  --accent-soft: #f5f5f4;
+  --accent-line: #d7d7d7;
+  --accent-ink: #ffffff;
+  --ok: #111111;
+  --ok-soft: #f5f5f4;
+  --ok-line: #d7d7d7;
+  --bad: #b42318;
+  --bad-soft: #fff6f5;
+  --bad-line: #f0c7c2;
+  --warn: #777777;
+  --warn-soft: #f5f5f4;
+  --warn-line: #d7d7d7;
+  --control: 36px;
+  --control-sm: 30px;
   background: var(--page);
   color: var(--ink);
   font-family: "Space Grotesk", system-ui, sans-serif;
@@ -46,18 +62,21 @@ a {
 
 .sg .shell {
   display: grid;
-  grid-template-columns: 64px 280px minmax(0, 1fr);
+  grid-template-columns: 64px 260px minmax(0, 1fr);
   min-height: 100vh;
-  background: var(--surface);
 }
 
 .sg .rail {
   background: var(--chip);
+  color: var(--ink);
   border-right: 1px solid var(--line);
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 100vh;
+  position: sticky;
+  top: 0;
+  align-self: start;
+  height: 100vh;
   padding: 28px 0;
 }
 
@@ -75,14 +94,20 @@ a {
 }
 
 .sg .vbrand:hover {
-  opacity: 0.6;
+  opacity: 0.7;
 }
 
 .sg .side {
+  background: var(--surface);
   border-right: 1px solid var(--line);
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  /* Pinned to the viewport, so the network footer stays visible on pages taller than the screen. */
+  position: sticky;
+  top: 0;
+  align-self: start;
+  height: 100vh;
+  overflow-y: auto;
   padding: 24px 18px;
   gap: 24px;
 }
@@ -91,9 +116,9 @@ a {
   display: flex;
   flex-direction: column;
   gap: 3px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--chip);
+  border: 1px solid var(--accent-line);
+  border-radius: 12px;
+  background: var(--accent-soft);
   padding: 11px 12px;
 }
 
@@ -115,13 +140,19 @@ a {
 .sg .side-role {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   padding: 0 6px;
 }
 
 .sg .side-role .v {
-  font-size: 13px;
-  font-weight: 500;
+  align-self: flex-start;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-line);
+  border-radius: 999px;
+  padding: 4px 10px;
 }
 
 .sg .side-foot {
@@ -153,11 +184,11 @@ a {
 }
 
 .sg .net.ok .net-dot {
-  background: var(--ink);
+  background: var(--ok);
 }
 
 .sg .net.warn .net-dot {
-  background: #b42318;
+  background: var(--bad);
 }
 
 .sg .net-name {
@@ -170,7 +201,7 @@ a {
 }
 
 .sg .net.warn .net-name {
-  color: #b42318;
+  color: var(--bad);
 }
 
 .sg .net-switch {
@@ -200,23 +231,79 @@ a {
 }
 
 .sg .main {
-  width: min(100%, 1120px);
-  padding: 38px 48px 56px;
+  width: min(100%, 1240px);
+  padding: 30px 40px 40px;
   min-width: 0;
 }
 
 .sg .mhead {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
   gap: 16px;
   flex-wrap: wrap;
+  padding-bottom: 18px;
+}
+
+.sg .mtitle {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.sg .mtitle-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sg .role-pill {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--accent-ink);
+  background: var(--accent);
+  border-radius: 999px;
+  padding: 4px 10px;
 }
 
 .sg .mhead h1 {
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 600;
-  letter-spacing: 0;
+  letter-spacing: -0.01em;
+}
+
+.sg .msub {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* The status message has its own row under the title, reserved even when empty, so a message
+   appearing or clearing never moves the page. */
+.sg .hstatus {
+  flex: 1 1 100%;
+  order: 3;
+  min-width: 0;
+  min-height: 31px;
+  display: flex;
+  justify-content: flex-start;
+}
+
+.sg .hstatus span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12.5px;
+  line-height: 15px;
+  font-weight: 500;
+  color: var(--accent-strong);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-line);
+  border-radius: 8px;
+  padding: 7px 12px;
 }
 
 .sg .powered {
@@ -243,28 +330,53 @@ a {
   color: var(--muted);
 }
 
-.sg .rule {
-  height: 1px;
-  background: var(--line);
-  margin: 20px 0 6px;
+/* Sections are cards on the tinted page. */
+.sg .sec {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 16px 18px;
+  margin-top: 14px;
 }
 
-.sg .sec {
-  margin-top: 28px;
+.sg .grid2,
+.sg .grid2b {
+  display: grid;
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.sg .grid2 {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.sg .grid2b {
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+}
+
+.sg .grid2 > .sec,
+.sg .grid2b > .sec {
+  margin-top: 0;
 }
 
 .sg .sechead {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 13px;
+  min-height: var(--control-sm);
+  margin-bottom: 8px;
 }
 
 .sg .sechead h2 {
   font-size: 11.5px;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
+  color: var(--accent);
+}
+
+.sg .sechead .mono {
+  font-size: 11px;
   color: var(--muted);
 }
 
@@ -284,101 +396,216 @@ a {
   color: var(--muted);
   font-weight: 600;
   text-align: left;
-  padding: 0 14px 10px;
+  padding: 0 10px 8px;
+  white-space: nowrap;
+}
+
+/* Fixed columns and row height: revoking a row must not reflow the table. */
+.sg table.issued {
+  table-layout: fixed;
+}
+
+.sg table.issued th:nth-child(1) {
+  width: 20%;
+}
+
+.sg table.issued th:nth-child(2) {
+  width: 30%;
+}
+
+.sg table.issued th:nth-child(3),
+.sg table.issued th:nth-child(4) {
+  width: 18%;
+}
+
+.sg table.issued td {
+  /* Taller than a cell holding the Revoke button, so rows keep one height with or without it. */
+  height: 56px;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .sg td {
-  padding: 13px 14px;
+  padding: 11px 10px;
   border-top: 1px solid var(--line);
   font-size: 13.5px;
   vertical-align: middle;
-}
-
-.sg tr:last-child td {
-  border-bottom: 1px solid var(--line);
 }
 
 .sg .name {
   font-weight: 500;
 }
 
+.sg tbody tr:hover td {
+  background: var(--accent-soft);
+}
+
+/* Status chips: green valid, red revoked, amber expired or changed. */
 .sg .stat {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: 6px;
   font-size: 12px;
-  font-weight: 500;
-}
-
-.sg .stat .sq {
-  width: 9px;
-  height: 9px;
-  border: 1.5px solid var(--ink);
-  display: inline-block;
-}
-
-.sg .stat.on .sq {
-  background: var(--ink);
-}
-
-.sg .stat.off {
+  font-weight: 600;
+  border-radius: 999px;
+  padding: 4px 10px 4px 8px;
+  border: 1px solid var(--line-2);
   color: var(--muted);
-}
-
-.sg .stat.off .sq {
-  border-color: var(--muted);
-}
-
-.sg .btn {
-  font-size: 12.5px;
-  font-weight: 500;
-  cursor: pointer;
-  border: 1px solid var(--ink);
-  background: var(--invert-bg);
-  color: var(--invert-ink);
-  padding: 8px 15px;
-  border-radius: 7px;
-  transition: 0.15s;
+  background: var(--chip);
   white-space: nowrap;
 }
 
-.sg .btn:hover {
-  opacity: 0.85;
+.sg .stat .sq {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  display: inline-block;
+}
+
+.sg .stat.ok {
+  color: var(--ok);
+  background: var(--ok-soft);
+  border-color: var(--ok-line);
+}
+
+.sg .stat.bad {
+  color: var(--bad);
+  background: var(--bad-soft);
+  border-color: var(--bad-line);
+}
+
+.sg .stat.warn {
+  color: var(--warn);
+  background: var(--warn-soft);
+  border-color: var(--warn-line);
+}
+
+.sg .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--control);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: var(--accent-ink);
+  padding: 0 15px;
+  border-radius: 8px;
+  transition: 0.15s;
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+.sg .btn:hover:not(:disabled) {
+  background: var(--accent-strong);
+  border-color: var(--accent-strong);
 }
 
 .sg .btn.ghost {
-  background: transparent;
+  background: var(--surface);
   color: var(--ink);
   border-color: var(--line-2);
 }
 
-.sg .btn.ghost:hover {
-  border-color: var(--ink);
-  opacity: 1;
+.sg .btn.ghost:hover:not(:disabled) {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent-strong);
 }
 
 .sg .btn.sm {
-  padding: 6px 11px;
+  height: var(--control-sm);
+  padding: 0 12px;
   font-size: 11.5px;
-  border-radius: 6px;
+  border-radius: 7px;
+}
+
+/* A button next to a field matches the field's height. */
+.sg .issue .btn,
+.sg .verify .btn {
+  height: var(--control);
+  padding: 0 16px;
+  font-size: 12.5px;
+  border-radius: 8px;
 }
 
 .sg .btn[disabled] {
   cursor: not-allowed;
-  background: transparent;
+  background: var(--chip);
   color: var(--muted);
   border: 1px dashed var(--line-2);
 }
 
+/* The local test wallets open as a menu under Connect wallet. */
 .sg .wallet-control {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  flex-wrap: wrap;
 }
 
+.sg .wallet-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 20;
+  min-width: 220px;
+  background: var(--surface);
+  border: 1px solid var(--line-2);
+  border-radius: 12px;
+  box-shadow: 0 14px 34px rgba(17, 17, 17, 0.12);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sg .wallet-menu .menu-k {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 6px 10px 4px;
+}
+
+.sg .menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  padding: 8px 10px;
+  cursor: pointer;
+}
+
+.sg .menu-item:hover {
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+.sg .menu-item .mono {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* Wallet errors float under the header controls, so they never re-wrap the header. */
 .sg .wallet-error {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 10;
+  width: max-content;
   color: var(--muted);
   font-size: 11px;
   line-height: 1.3;
@@ -392,9 +619,9 @@ a {
   color: var(--ink);
   background: var(--surface);
   border: 1px solid var(--line-2);
-  border-radius: 7px;
-  padding: 9px 12px;
-  min-height: 34px;
+  border-radius: 8px;
+  padding: 0 12px;
+  height: var(--control);
 }
 
 .sg input[type="text"],
@@ -406,7 +633,7 @@ a {
   appearance: none;
   -webkit-appearance: none;
   padding-right: 38px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14' fill='none'%3E%3Cpath d='m3.5 5.25 3.5 3.5 3.5-3.5' stroke='%23111111' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14' fill='none'%3E%3Cpath d='m3.5 5.25 3.5 3.5 3.5-3.5' stroke='%23374151' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 12px center;
   background-size: 14px 14px;
@@ -414,6 +641,11 @@ a {
   min-width: 0;
   text-overflow: ellipsis;
   cursor: pointer;
+}
+
+.sg select:hover:not(:disabled),
+.sg input[type="text"]:hover {
+  border-color: var(--accent-line);
 }
 
 .sg select:disabled {
@@ -426,8 +658,8 @@ a {
 .sg select:focus-visible,
 .sg button:focus-visible,
 .sg a:focus-visible {
-  outline: 2px solid var(--ink);
-  outline-offset: 3px;
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .sg .row {
@@ -441,10 +673,10 @@ a {
   display: flex;
   align-items: end;
   gap: 10px;
-  padding: 14px;
-  border: 1px solid var(--line);
-  border-radius: 9px;
-  background: var(--chip);
+  padding: 12px;
+  border: 1px solid var(--accent-line);
+  border-radius: 10px;
+  background: var(--accent-soft);
   flex-wrap: wrap;
 }
 
@@ -464,15 +696,29 @@ a {
   color: var(--muted);
 }
 
+/* Task gate: three checks, then the action. */
 .sg .gate {
   border: 1px solid var(--line);
+  border-left: 4px solid var(--line-2);
   border-radius: 10px;
-  padding: 18px 20px;
-  margin-bottom: 12px;
+  padding: 14px 16px;
   display: flex;
   align-items: center;
   gap: 20px;
   flex-wrap: wrap;
+  transition: border-color 0.2s;
+}
+
+.sg .gate.open {
+  border-left-color: var(--ok);
+}
+
+.sg .gate.shut {
+  border-left-color: var(--bad);
+}
+
+.sg .gate + .gate {
+  margin-top: 10px;
 }
 
 .sg .gate .lead {
@@ -506,10 +752,10 @@ a {
 }
 
 .sg .dot {
-  width: 13px;
-  height: 13px;
+  width: 15px;
+  height: 15px;
   border-radius: 50%;
-  border: 1.5px solid var(--muted);
+  border: 1.5px solid var(--line-2);
   display: grid;
   place-items: center;
   flex: none;
@@ -520,26 +766,43 @@ a {
 }
 
 .sg .check.pass .dot {
-  border-color: var(--ink);
-  background: var(--ink);
+  border-color: var(--ok);
+  background: var(--ok);
 }
 
 .sg .check.pass .dot svg {
-  width: 8px;
-  height: 8px;
-  color: var(--surface);
+  width: 9px;
+  height: 9px;
+  color: #ffffff;
 }
 
+/* Fixed slot, so Locked, Start task and Started swap without moving the checks. */
 .sg .verdict {
   display: flex;
   align-items: center;
-  gap: 12px;
+  justify-content: flex-end;
+  gap: 10px;
+  flex: none;
+  width: 112px;
 }
 
 .sg .lockico {
   width: 16px;
   height: 16px;
-  color: var(--muted);
+  color: var(--bad);
+}
+
+.sg .locked-chip {
+  display: inline-flex;
+  align-items: center;
+  height: var(--control-sm);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--bad);
+  background: var(--bad-soft);
+  border: 1px solid var(--bad-line);
+  border-radius: 7px;
+  padding: 0 12px;
 }
 
 .sg .cred,
@@ -548,54 +811,71 @@ a {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 14px 16px;
+  padding: 12px 14px;
   border: 1px solid var(--line);
-  border-radius: 9px;
-  margin-bottom: 10px;
+  border-radius: 10px;
+}
+
+.sg .cred + .cred {
+  margin-top: 8px;
 }
 
 .sg .train-card {
   border: 1px solid var(--line);
   border-radius: 10px;
-  margin-bottom: 10px;
+}
+
+.sg .train-card + .train-card {
+  margin-top: 8px;
 }
 
 .sg .train-card .train {
   border: 0;
-  margin: 0;
 }
 
-.sg .train {
-  padding: 16px 18px;
-  border-radius: 10px;
+/* The quiz opens and closes smoothly instead of popping in and out. */
+.sg .quiz-wrap {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.32s ease;
+}
+
+.sg .quiz-wrap.open {
+  grid-template-rows: 1fr;
+}
+
+.sg .quiz-wrap > .quiz-inner {
+  overflow: hidden;
+  min-height: 0;
 }
 
 .sg .quiz {
   border-top: 1px solid var(--line);
-  padding: 16px 18px;
+  padding: 12px 14px 14px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
 }
 
 .sg .q-prompt {
   font-size: 13.5px;
   font-weight: 500;
-  margin-bottom: 9px;
+  margin-bottom: 7px;
 }
 
 .sg .q-opts {
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
 }
 
 .sg .q-opt {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 9px;
   font-size: 13px;
-  padding: 9px 12px;
+  line-height: 18px;
+  padding: 8px 11px;
   border: 1px solid var(--line-2);
   border-radius: 8px;
   cursor: pointer;
@@ -603,33 +883,37 @@ a {
 }
 
 .sg .q-opt:hover {
-  border-color: var(--ink);
+  border-color: var(--accent);
 }
 
 .sg .q-opt.sel {
-  border-color: var(--ink);
-  background: var(--chip);
+  border-color: var(--accent);
+  background: var(--accent-soft);
 }
 
 .sg .q-opt input[type="radio"] {
-  accent-color: var(--ink);
+  accent-color: var(--accent);
   inline-size: 16px;
   block-size: 16px;
   flex: none;
-  margin: 0;
+  margin: 1px 0 0;
   outline: none;
   cursor: pointer;
 }
 
 .sg .q-opt:has(input:focus-visible) {
-  outline: 2px solid var(--ink);
-  outline-offset: 3px;
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .sg .quiz-foot {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
+}
+
+.sg .claim-btn {
+  min-width: 112px;
 }
 
 .sg .c-name,
@@ -656,6 +940,7 @@ a {
   gap: 12px;
 }
 
+/* Contract events, colour-coded by kind. */
 .sg .audit {
   border: 1px solid var(--line);
   border-radius: 10px;
@@ -665,7 +950,7 @@ a {
 .sg .audit .line {
   display: flex;
   gap: 14px;
-  padding: 11px 16px;
+  padding: 8px 14px;
   font-size: 12px;
   align-items: center;
 }
@@ -675,14 +960,33 @@ a {
 }
 
 .sg .audit .ev {
-  color: var(--muted);
-  width: 170px;
+  width: 190px;
   flex: none;
 }
 
 .sg .audit .ev b {
+  display: inline-block;
+  font-weight: 600;
+  font-size: 11.5px;
   color: var(--ink);
-  font-weight: 500;
+  background: var(--chip);
+  border-radius: 6px;
+  padding: 2px 7px;
+}
+
+.sg .audit .ev.issued b {
+  color: var(--ok);
+  background: var(--ok-soft);
+}
+
+.sg .audit .ev.revoked b {
+  color: var(--bad);
+  background: var(--bad-soft);
+}
+
+.sg .audit .ev.started b {
+  color: var(--ink);
+  background: var(--chip);
 }
 
 .sg .verify {
@@ -696,9 +1000,21 @@ a {
   max-width: 470px;
 }
 
+/* The result area keeps one height, so checking an address never moves the page. */
+.sg .vresult {
+  min-height: 112px;
+  margin-top: 12px;
+}
+
+.sg .vresult > .empty {
+  min-height: 112px;
+  display: flex;
+  align-items: center;
+}
+
 .sg .vhead {
   font-size: 13px;
-  margin: 14px 0 12px;
+  margin: 2px 0 10px;
 }
 
 .sg .vhead b {
@@ -709,9 +1025,9 @@ a {
 .sg .notice {
   color: var(--muted);
   font-size: 13px;
-  padding: 14px 16px;
+  padding: 12px 14px;
   border: 1px dashed var(--line-2);
-  border-radius: 9px;
+  border-radius: 10px;
 }
 
 .sg .notice {
@@ -726,11 +1042,12 @@ a {
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
-  padding: 13px 16px;
-  border: 1px solid var(--line-2);
-  border-radius: 10px;
-  background: var(--chip);
+  padding: 12px 16px;
+  border: 1px solid var(--accent-line);
+  border-radius: 12px;
+  background: var(--accent-soft);
   font-size: 13px;
+  margin-top: 14px;
 }
 
 .sg .banner b {
@@ -744,17 +1061,43 @@ a {
 
 .sg a.btn {
   text-decoration: none;
-  display: inline-block;
 }
 
-.sg tbody tr:hover td {
-  background: var(--chip);
+/* Medium widths, e.g. with a wallet side panel open: a slimmer rail and sidebar give the main
+   column room, and short table values stay on one line. */
+@media (min-width: 841px) and (max-width: 1440px) {
+  .sg .shell {
+    grid-template-columns: 52px 196px minmax(0, 1fr);
+  }
+
+  .sg .side {
+    padding: 20px 14px;
+    gap: 20px;
+  }
+
+  .sg .main {
+    padding: 24px 28px 32px;
+  }
+
+  .sg td {
+    padding: 10px 8px;
+  }
+
+  .sg td.mono,
+  .sg th {
+    white-space: nowrap;
+  }
 }
 
-.sg .cred:hover,
-.sg .train:hover,
-.sg .gate:hover {
-  border-color: var(--line-2);
+@media (max-width: 1100px) {
+  .sg .grid2,
+  .sg .grid2b {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sg .q-opts {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 @media (max-width: 840px) {
@@ -764,9 +1107,8 @@ a {
   }
 
   .sg .rail {
-    border-right: 0;
-    border-bottom: 1px solid var(--line);
-    min-height: auto;
+    position: static;
+    height: auto;
     padding: 12px;
   }
 
@@ -778,7 +1120,9 @@ a {
   .sg .side {
     border-right: 0;
     border-bottom: 1px solid var(--line);
-    min-height: auto;
+    position: static;
+    height: auto;
+    overflow: visible;
   }
 
   .sg .side-foot {

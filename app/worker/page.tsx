@@ -2,9 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useConnection, useSwitchChain, useWriteContract } from "wagmi";
+import { useConnection, useWriteContract } from "wagmi";
 import { certificateStatus } from "@/lib/certificate-status";
 import { useNow } from "@/lib/use-now";
+import { useArrivedFromVerifier } from "@/lib/role-route";
 import { AppShell } from "@/components/AppShell";
 import { ReadError } from "@/components/ReadError";
 import { LockIcon, Tick } from "@/components/GateIcons";
@@ -13,7 +14,7 @@ import { expiryLabel } from "@/lib/format";
 import { roleLabel, skillGateAbi } from "@/lib/skillgate";
 import { skillGateSepolia } from "@/lib/sepolia";
 import { QUIZZES, answerKey } from "@/lib/quizzes";
-import { confirmTransaction, useTransactionFeedback } from "@/lib/use-transaction-feedback";
+import { WRONG_NETWORK, confirmTransaction, useTransactionFeedback } from "@/lib/use-transaction-feedback";
 import { useSkillGateData, useTaskGate, useWalletGate, type CertificateTypeView } from "@/lib/use-skillgate";
 
 export default function WorkerPage() {
@@ -24,13 +25,14 @@ export default function WorkerPage() {
 function WorkerConsole() {
   const router = useRouter();
   const gate = useWalletGate();
+  useArrivedFromVerifier();
   const data = useSkillGateData();
   const now = useNow();
   const write = useWriteContract();
-  const switchChain = useSwitchChain();
   const [openQuiz, setOpenQuiz] = useState<string | null>(null);
   const [answers, setAnswers] = useState<Record<string, number[]>>({});
   const [message, setMessage] = useState("");
+  const [started, setStarted] = useState<string[]>([]);
   const transaction = useTransactionFeedback(setMessage);
 
   const myCerts = useMemo(() => {
@@ -38,13 +40,18 @@ function WorkerConsole() {
     return data.certificates.filter((cert) => cert.holder === gate.address);
   }, [data.certificates, gate.address]);
 
-  const availableTraining = useMemo(() => {
+  const roleTypes = useMemo(() => {
     if (!gate.role) return [];
-    return data.certificateTypes.filter((type) => {
-      if (!type.active || type.role !== gate.role) return false;
-      return !myCerts.some((cert) => cert.typeId === type.id && (cert.revoked || certificateStatus(cert, data.typeById.get(cert.typeId.toString()), data.employees.find((employee) => employee.address === cert.holder), now).ok));
-    });
-  }, [data.certificateTypes, data.typeById, data.employees, gate.role, myCerts, now]);
+    return data.certificateTypes.filter((type) => type.active && type.role === gate.role);
+  }, [data.certificateTypes, gate.role]);
+
+  // "valid" and "revoked" cards show their state instead of the quiz.
+  const heldState = (typeId: bigint): "valid" | "revoked" | null => {
+    const cert = myCerts.find((item) => item.typeId === typeId);
+    if (!cert) return null;
+    if (cert.revoked) return "revoked";
+    return certificateStatus(cert, data.typeById.get(cert.typeId.toString()), data.employees.find((employee) => employee.address === cert.holder), now).ok ? "valid" : null;
+  };
 
   const myTasks = useMemo(() => {
     if (!gate.role) return [];
@@ -134,12 +141,13 @@ function WorkerConsole() {
     await confirmTransaction(hash);
     await data.refetchAll();
     await taskGate.refetch();
+    setStarted((current) => (current.includes(taskId.toString()) ? current : [...current, taskId.toString()]));
     setMessage("Task started.");
   }
 
   if (!gate.configured) {
     return (
-      <AppShell title="Worker console" role="Worker" connected={gate.address}>
+      <AppShell title="Worker console" role="Worker" connected={gate.address} tone="worker" subtitle="Earn the certificate your role needs, then start your tasks.">
         <section className="sec">
           <Notice>Set the SkillGate contract address and Alchemy Sepolia RPC URL before using Worker.</Notice>
         </section>
@@ -148,12 +156,12 @@ function WorkerConsole() {
   }
 
   if (gate.error || data.error || taskGate.error) {
-    return <AppShell title="Worker console" role="Access unavailable" connected={gate.address}><ReadError retry={() => Promise.all([gate.refetch(), data.refetchAll(), taskGate.refetch()])} /></AppShell>;
+    return <AppShell title="Worker console" role="Access unavailable" connected={gate.address} tone="worker" subtitle="Earn the certificate your role needs, then start your tasks."><ReadError retry={() => Promise.all([gate.refetch(), data.refetchAll(), taskGate.refetch()])} /></AppShell>;
   }
 
   if (!gate.connected) {
     return (
-      <AppShell title="Worker console" role="Worker" connected={gate.address}>
+      <AppShell title="Worker console" role="Not connected" connected={gate.address} tone="worker" subtitle="Earn the certificate your role needs, then start your tasks.">
         <section className="sec">
           <div className="sechead">
             <h2>Wallet</h2>
@@ -166,8 +174,11 @@ function WorkerConsole() {
 
   if (gate.loading || !gate.isEmployee || gate.isAdmin) {
     return (
-      <AppShell title="Worker console" role={gate.roleName} connected={gate.address}>
+      <AppShell title="Worker console" role="Checking wallet" connected={gate.address} tone="worker" subtitle="Earn the certificate your role needs, then start your tasks.">
         <section className="sec">
+          <div className="sechead">
+            <h2>Wallet</h2>
+          </div>
           <Empty>Checking wallet access.</Empty>
         </section>
       </AppShell>
@@ -175,53 +186,21 @@ function WorkerConsole() {
   }
 
   return (
-    <AppShell title="Worker console" role={gate.roleName} connected={gate.address}>
-      {message && (
-        <section className="sec">
-          <Notice>{message}</Notice>
-        </section>
-      )}
+    <AppShell title="Worker console" role={gate.roleName} connected={gate.address} status={gate.connected && !gate.onSepolia ? WRONG_NETWORK : message} tone="worker" subtitle="Earn the certificate your role needs, then start your tasks.">
 
-      {gate.connected && !gate.onSepolia && (
-        <section className="sec">
-          <div className="banner">
-            <span>
-              Your wallet is on the wrong network. SkillGate runs on the <b>Sepolia</b> test network (free test ETH, no real fees).
-            </span>
-            <button
-              className="btn sm"
-              disabled={switchChain.isPending}
-              onClick={() => switchChain.mutate({ chainId: skillGateSepolia.id })}
-            >
-              {switchChain.isPending ? "Switching" : "Switch to Sepolia"}
-            </button>
-          </div>
-        </section>
-      )}
-
-      <section className="sec">
-        <div className="sechead">
-          <h2>Wallet</h2>
-        </div>
-        <div className="row">
-          <span className="mono" style={{ fontSize: 13 }} title="Connected wallet">
-            {gate.address}
-          </span>
-          <Status on label={gate.roleName} tip="This wallet is registered to the workspace." />
-        </div>
-      </section>
 
       <section className="sec">
         <div className="sechead">
           <h2>Get certified</h2>
         </div>
-        {availableTraining.length === 0 ? (
-          <Empty>{myCerts.some((cert) => cert.revoked) ? "Ask an issuer to restore a revoked certificate." : "No training for this role right now."}</Empty>
+        {roleTypes.length === 0 ? (
+          <Empty>No training for this role right now.</Empty>
         ) : (
-          availableTraining.map((type) => {
+          roleTypes.map((type) => {
             const tid = type.id.toString();
             const quiz = QUIZZES[tid];
-            const open = openQuiz === tid;
+            const held = heldState(type.id);
+            const open = openQuiz === tid && !held;
             const selected = answers[tid] ?? [];
             const allAnswered = quiz ? quiz.questions.every((_, index) => typeof selected[index] === "number") : true;
             return (
@@ -235,7 +214,14 @@ function WorkerConsole() {
                     </div>
                   </div>
                   <div className="t-right">
-                    {quiz ? (
+                    {held === "valid" ? (
+                      <Status on label="Certified" tip="You hold a valid certificate of this type." />
+                    ) : held === "revoked" ? (
+                      <>
+                        <span className="t-meta">Ask an issuer to restore it.</span>
+                        <Status on={false} label="Revoked" />
+                      </>
+                    ) : quiz ? (
                       !open && (
                         <button className="btn sm" onClick={() => setOpenQuiz(tid)}>
                           Take quiz
@@ -248,51 +234,58 @@ function WorkerConsole() {
                     )}
                   </div>
                 </div>
-                {quiz && open && (
-                  <div className="quiz">
-                    {quiz.questions.map((question, questionIndex) => (
-                      <div className="q" key={questionIndex}>
-                        <div className="q-prompt">
-                          {questionIndex + 1}. {question.prompt}
-                        </div>
-                        <div className="q-opts">
-                          {question.options.map((option, optionIndex) => (
-                            <label
-                              className={`q-opt ${selected[questionIndex] === optionIndex ? "sel" : ""}`}
-                              key={optionIndex}
-                            >
-                              <input
-                                type="radio"
-                                name={`${tid}-${questionIndex}`}
-                                checked={selected[questionIndex] === optionIndex}
-                                onChange={() => pick(tid, questionIndex, optionIndex)}
-                              />
-                              {option}
-                            </label>
-                          ))}
+                {quiz ? (
+                  <div className={`quiz-wrap ${open ? "open" : ""}`} aria-hidden={!open}>
+                    <div className="quiz-inner">
+                      <div className="quiz">
+                        {quiz.questions.map((question, questionIndex) => (
+                          <div className="q" key={questionIndex}>
+                            <div className="q-prompt">
+                              {questionIndex + 1}. {question.prompt}
+                            </div>
+                            <div className="q-opts">
+                              {question.options.map((option, optionIndex) => (
+                                <label
+                                  className={`q-opt ${selected[questionIndex] === optionIndex ? "sel" : ""}`}
+                                  key={optionIndex}
+                                >
+                                  <input
+                                    type="radio"
+                                    name={`${tid}-${questionIndex}`}
+                                    checked={selected[questionIndex] === optionIndex}
+                                    onChange={() => pick(tid, questionIndex, optionIndex)}
+                                    tabIndex={open ? 0 : -1}
+                                  />
+                                  {option}
+                                </label>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                        <div className="quiz-foot">
+                          <button
+                            className="btn ghost sm"
+                            tabIndex={open ? 0 : -1}
+                            onClick={() => {
+                              setOpenQuiz(null);
+                              setMessage("");
+                            }}
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            className="btn sm claim-btn"
+                            tabIndex={open ? 0 : -1}
+                            onClick={() => transaction.run(() => claim(type))}
+                            disabled={!allAnswered || transaction.pending || write.isPending || !gate.onSepolia}
+                          >
+                            {write.isPending ? "Submitting" : "Get certificate"}
+                          </button>
                         </div>
                       </div>
-                    ))}
-                    <div className="quiz-foot">
-                      <button
-                        className="btn ghost sm"
-                        onClick={() => {
-                          setOpenQuiz(null);
-                          setMessage("");
-                        }}
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        className="btn sm"
-                        onClick={() => transaction.run(() => claim(type))}
-                        disabled={!allAnswered || transaction.pending || write.isPending || !gate.onSepolia}
-                      >
-                        {write.isPending ? "Submitting" : "Get certificate"}
-                      </button>
                     </div>
                   </div>
-                )}
+                ) : null}
               </div>
             );
           })
@@ -335,7 +328,7 @@ function WorkerConsole() {
             const requiredType = data.typeById.get(task.requiredTypeId.toString());
             const valid = Boolean(taskGate.gates.get(task.id.toString()));
             return (
-              <div className="gate" key={task.id.toString()}>
+              <div className={`gate ${valid ? "open" : "shut"}`} key={task.id.toString()}>
                 <div className="lead">
                   <div className="t">{task.name}</div>
                   <div className="req">
@@ -355,19 +348,23 @@ function WorkerConsole() {
                   </div>
                   <div className={`check ${valid ? "pass" : ""}`}>
                     <span className="dot">{valid ? <Tick /> : null}</span>
-                    {valid ? "Unlocked" : "Locked"}
+                    Task open
                   </div>
                 </div>
                 {valid ? (
-                  <button className="btn sm" onClick={() => transaction.run(() => startTask(task.id))} disabled={transaction.pending || write.isPending || !gate.onSepolia}>
-                    Start task
-                  </button>
+                  <div className="verdict">
+                    {started.includes(task.id.toString()) ? (
+                      <Status on label="Started" tip="Started in this session." />
+                    ) : (
+                      <button className="btn sm" onClick={() => transaction.run(() => startTask(task.id))} disabled={transaction.pending || write.isPending || !gate.onSepolia}>
+                        Start task
+                      </button>
+                    )}
+                  </div>
                 ) : (
                   <div className="verdict">
                     <LockIcon />
-                    <button className="btn sm" disabled>
-                      Locked
-                    </button>
+                    <span className="locked-chip">Locked</span>
                   </div>
                 )}
               </div>

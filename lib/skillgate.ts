@@ -127,6 +127,12 @@ export const skillGateAbi = [
   },
   {
     type: "event",
+    name: "IssuerRevoked",
+    inputs: [{ name: "issuer", type: "address", indexed: true }],
+    anonymous: false
+  },
+  {
+    type: "event",
     name: "TaskCreated",
     inputs: [
       { name: "taskId", type: "uint256", indexed: true },

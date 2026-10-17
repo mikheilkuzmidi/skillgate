@@ -20,9 +20,12 @@ export function expiryLabel(expiresAt: bigint | undefined) {
   if (now >= expiresAt) {
     return "expired";
   }
-  const days = (expiresAt - now) / 86_400n;
-  if (days <= 0n) {
+  const remaining = expiresAt - now;
+  if (remaining < 86_400n) {
     return "today";
   }
-  return `in ${days.toString()} days`;
+  // Round to the nearest day: a fresh 180-day certificate reads "in 180 days" even when
+  // block time and the browser clock differ by a few seconds in either direction.
+  const days = (remaining + 43_200n) / 86_400n;
+  return days === 1n ? "in 1 day" : `in ${days.toString()} days`;
 }

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useArrivedFromVerifier } from "@/lib/role-route";
 import { AppShell } from "@/components/AppShell";
 import { ReadError } from "@/components/ReadError";
 import { Empty, Notice } from "@/components/Status";
@@ -11,6 +12,7 @@ import { useWalletGate } from "@/lib/use-skillgate";
 export default function NotRegisteredPage() {
   const router = useRouter();
   const gate = useWalletGate();
+  useArrivedFromVerifier();
 
   useEffect(() => {
     if (gate.connected && !gate.loading && !gate.error) {
@@ -20,11 +22,11 @@ export default function NotRegisteredPage() {
   }, [gate.connected, gate.loading, gate.error, gate.isAdmin, gate.isEmployee, router]);
 
   if (gate.error) {
-    return <AppShell title="Access unavailable" role="Public" connected={gate.address}><ReadError retry={gate.refetch} /></AppShell>;
+    return <AppShell title="Access unavailable" role="Public" connected={gate.address} tone="public"><ReadError retry={gate.refetch} /></AppShell>;
   }
 
   return (
-    <AppShell title="Wallet not registered" role="Not registered" connected={gate.address}>
+    <AppShell title="Wallet not registered" role="Not registered" connected={gate.address} tone="public">
       <section className="sec">
         <div className="sechead">
           <h2>Access</h2>

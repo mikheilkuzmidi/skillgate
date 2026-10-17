@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { getAddress, isAddress, type Address } from "viem";
@@ -13,6 +13,13 @@ import { expiryLabel, shortAddress } from "@/lib/format";
 import { AUTO_ROUTE_KEY, consolePath } from "@/lib/role-route";
 import { usePublicEvents, useSkillGateData, useWalletGate } from "@/lib/use-skillgate";
 
+// Events that change a worker's access get a colour; setup events stay neutral.
+const EVENT_KIND: Record<string, string> = {
+  CertificateIssued: "issued",
+  CertificateRevoked: "revoked",
+  TaskStarted: "started"
+};
+
 export default function PublicPage() {
   const router = useRouter();
   const gate = useWalletGate();
@@ -22,13 +29,18 @@ export default function PublicPage() {
   const [query, setQuery] = useState("");
   const [checked, setChecked] = useState<Address | undefined>();
   const [inputError, setInputError] = useState("");
+  // Connecting from this page sends the wallet to its console, which clears the flag on arrival.
+  // Until then this page keeps its public layout: no banner pushing content down, no role flicker.
+  const routing = gate.connected && typeof window !== "undefined" && window.sessionStorage.getItem(AUTO_ROUTE_KEY) === "1";
+  const routed = useRef(false);
 
   // Route to the role console once, right after connecting from this page.
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (window.sessionStorage.getItem(AUTO_ROUTE_KEY) !== "1") return;
     if (!gate.connected || gate.loading || gate.error) return;
-    window.sessionStorage.removeItem(AUTO_ROUTE_KEY);
+    if (routed.current) return;
+    routed.current = true;
     router.replace(consolePath({ isAdmin: gate.isAdmin, isEmployee: gate.isEmployee }));
   }, [gate.connected, gate.loading, gate.error, gate.isAdmin, gate.isEmployee, router]);
 
@@ -47,7 +59,7 @@ export default function PublicPage() {
         : null
     : null;
 
-  const role = gate.connected && !gate.loading && !gate.error ? gate.roleName : "Public";
+  const role = gate.connected && !gate.loading && !gate.error && !routing ? gate.roleName : "Public";
 
   function check() {
     const value = query.trim();
@@ -61,18 +73,18 @@ export default function PublicPage() {
   }
 
   if (data.error) {
-    return <AppShell title="Granary Foods" role="Public" publicHeader><ReadError retry={data.refetchAll} /></AppShell>;
+    return <AppShell title="Granary Foods" role="Public" publicHeader tone="public" subtitle="Check which certificates a worker holds. No wallet needed."><ReadError retry={data.refetchAll} /></AppShell>;
   }
 
   return (
-    <AppShell title="Granary Foods" role={role} publicHeader>
+    <AppShell title="Granary Foods" role={role} publicHeader opening={routing} tone="public" subtitle="Check which certificates a worker holds. No wallet needed.">
       {!data.configured && (
         <section className="sec">
           <Notice>Set `NEXT_PUBLIC_SKILLGATE_ADDRESS` and the Alchemy Sepolia RPC URL to read the live workspace.</Notice>
         </section>
       )}
 
-      {gate.connected && !gate.loading && !gate.error && (
+      {gate.connected && !gate.loading && !gate.error && !routing && (
         <section className="sec">
           <div className="banner">
             <span>
@@ -106,34 +118,37 @@ export default function PublicPage() {
             Check
           </button>
         </div>
-        {inputError && <div className="empty" style={{ marginTop: 14 }}>{inputError}</div>}
-        {!checked && !inputError ? (
-          <div className="empty" style={{ marginTop: 14 }}>Enter a wallet address.</div>
-        ) : checked && data.loading ? (
-          <Empty>Reading credentials.</Empty>
-        ) : checked && checkedCerts.length === 0 ? (
-          <div className="empty" style={{ marginTop: 14 }}>No credentials found.</div>
-        ) : checked ? (
-          <div>
-            <div className="vhead">
-              <b>{shortAddress(checked)}</b> holds <b>{validCount}</b> valid credential
-              {validCount === 1 ? "" : "s"}.
-            </div>
-            {checkedCerts.map((cert) => {
-              const certType = data.typeById.get(cert.typeId.toString());
-              const status = certificateStatus(cert, data.typeById.get(cert.typeId.toString()), data.employees.find((employee) => employee.address === cert.holder), now);
-              return (
-                <div className="cred" key={`${cert.holder}-${cert.typeId.toString()}`}>
-                  <div>
-                    <div className="c-name">{certType?.name ?? `Certificate ${cert.typeId.toString()}`}</div>
-                    <div className="c-meta mono">{status.ok ? expiryLabel(cert.expiresAt) : status.label.toLowerCase()}</div>
+        <div className="vresult">
+          {inputError ? (
+            <div className="empty">{inputError}</div>
+          ) : !checked ? (
+            <div className="empty">Enter a wallet address.</div>
+          ) : data.loading ? (
+            <div className="empty">Reading certificates.</div>
+          ) : checkedCerts.length === 0 ? (
+            <div className="empty">No certificates found.</div>
+          ) : (
+            <div>
+              <div className="vhead">
+                <b>{shortAddress(checked)}</b> holds <b>{validCount}</b> valid certificate
+                {validCount === 1 ? "" : "s"}.
+              </div>
+              {checkedCerts.map((cert) => {
+                const certType = data.typeById.get(cert.typeId.toString());
+                const status = certificateStatus(cert, data.typeById.get(cert.typeId.toString()), data.employees.find((employee) => employee.address === cert.holder), now);
+                return (
+                  <div className="cred" key={`${cert.holder}-${cert.typeId.toString()}`}>
+                    <div>
+                      <div className="c-name">{certType?.name ?? `Certificate ${cert.typeId.toString()}`}</div>
+                      <div className="c-meta mono">{status.ok ? expiryLabel(cert.expiresAt) : status.label.toLowerCase()}</div>
+                    </div>
+                    <Status on={status.ok} label={status.ok ? "Valid" : status.label} />
                   </div>
-                  <Status on={status.ok} label={status.ok ? "Valid" : status.label} />
-                </div>
-              );
-            })}
-          </div>
-        ) : null}
+                );
+              })}
+            </div>
+          )}
+        </div>
       </section>
 
       <section className="sec">
@@ -148,7 +163,7 @@ export default function PublicPage() {
           <div className="audit">
             {audit.events.map((event) => (
               <div className="line mono" key={`${event.transactionHash}-${event.name}-${event.logIndex}`}>
-                <span className="ev">
+                <span className={`ev ${EVENT_KIND[event.name] ?? ""}`}>
                   <b>{event.name}</b>
                 </span>
                 <span className="meta">{event.meta}</span>
