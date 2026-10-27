@@ -1,0 +1,102 @@
+--- a/v3/types.js
++++ b/v3/types.js
+@@ -1772,6 +1772,7 @@
+                     message: def.exactLength.message,
+                 });
+                 status.dirty();
++                if (tooBig) return INVALID;
+             }
+         }
+         if (def.minLength !== null) {
+@@ -1798,6 +1799,7 @@
+                     message: def.maxLength.message,
+                 });
+                 status.dirty();
++                return INVALID;
+             }
+         }
+         if (ctx.common.async) {
+@@ -2625,6 +2627,7 @@
+                 type: "array",
+             });
+             status.dirty();
++            return INVALID;
+         }
+         const items = [...ctx.data]
+             .map((item, itemIndex) => {
+@@ -2821,6 +2824,7 @@
+                     message: def.maxSize.message,
+                 });
+                 status.dirty();
++                return INVALID;
+             }
+         }
+         const valueType = this._def.valueType;
+--- a/v3/types.cjs
++++ b/v3/types.cjs
+@@ -1793,6 +1793,7 @@
+                     message: def.exactLength.message,
+                 });
+                 status.dirty();
++                if (tooBig) return parseUtil_js_1.INVALID;
+             }
+         }
+         if (def.minLength !== null) {
+@@ -1819,6 +1820,7 @@
+                     message: def.maxLength.message,
+                 });
+                 status.dirty();
++                return parseUtil_js_1.INVALID;
+             }
+         }
+         if (ctx.common.async) {
+@@ -2651,6 +2653,7 @@
+                 type: "array",
+             });
+             status.dirty();
++            return parseUtil_js_1.INVALID;
+         }
+         const items = [...ctx.data]
+             .map((item, itemIndex) => {
+@@ -2850,6 +2853,7 @@
+                     message: def.maxSize.message,
+                 });
+                 status.dirty();
++                return parseUtil_js_1.INVALID;
+             }
+         }
+         const valueType = this._def.valueType;
+--- a/src/v3/types.ts
++++ b/src/v3/types.ts
+@@ -2266,6 +2266,7 @@
+           message: def.exactLength.message,
+         });
+         status.dirty();
++        if (tooBig) return INVALID;
+       }
+     }
+ 
+@@ -2294,6 +2295,7 @@
+           message: def.maxLength.message,
+         });
+         status.dirty();
++        return INVALID;
+       }
+     }
+ 
+@@ -3432,6 +3434,7 @@
+         type: "array",
+       });
+       status.dirty();
++      return INVALID;
+     }
+ 
+     const items = ([...ctx.data] as any[])
+@@ -3728,6 +3731,7 @@
+           message: def.maxSize.message,
+         });
+         status.dirty();
++        return INVALID;
+       }
+     }
+ 

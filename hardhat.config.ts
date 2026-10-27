@@ -5,8 +5,10 @@ import { defineConfig } from "hardhat/config";
 export default defineConfig({
   plugins: [hardhatToolboxViem],
   solidity: {
-    version: "0.8.35",
+    version: "0.8.38",
     settings: {
+      evmVersion: "osaka",
+      viaIR: false,
       optimizer: {
         enabled: true,
         runs: 200
